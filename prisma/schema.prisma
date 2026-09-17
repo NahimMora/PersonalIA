@@ -1,0 +1,498 @@
+// Personal AI / Segundo Cerebro — data model
+// See docs/DATA_MODEL.md for the rationale behind each entity and decision.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Auth
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  ADMIN
+  MEMBER
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  role         UserRole @default(ADMIN)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  auditEvents  AuditEvent[]
+  conversations ChatConversation[]
+  apiTokens    ApiToken[]
+
+  @@map("users")
+}
+
+// Scoped, revocable tokens for personal integrations (Apple Shortcuts, NFC, etc.)
+model ApiToken {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  tokenHash  String    @unique
+  scope      String    @default("shortcuts") // shortcuts | full
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@map("api_tokens")
+}
+
+// ---------------------------------------------------------------------------
+// Workspace hierarchy — Workspace > Project > Module. Nothing here is
+// hardcoded; the seed script only inserts example rows.
+// ---------------------------------------------------------------------------
+
+model Workspace {
+  id        String    @id @default(uuid())
+  name      String
+  slug      String    @unique
+  createdAt DateTime  @default(now())
+
+  projects  Project[]
+
+  @@map("workspaces")
+}
+
+model Project {
+  id          String    @id @default(uuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name        String
+  slug        String    @unique
+  // Short uppercase prefix used to build human-readable Item ids, e.g. "HS", "LVR".
+  code        String    @unique
+  description String?
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  modules      Module[]
+  items        Item[]
+  repositories Repository[]
+  activities   ActivitySession[]
+  quickEvents  QuickEvent[]
+  conversations ChatConversation[]
+  aliases      Alias[]
+  itemSequences ItemSequence[]
+
+  @@map("projects")
+}
+
+model Module {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  slug      String
+  createdAt DateTime @default(now())
+
+  items      Item[]
+  activities ActivitySession[]
+  aliases    Alias[]
+
+  @@unique([projectId, slug])
+  @@map("modules")
+}
+
+// Configurable aliases used by the deterministic classifier (see lib/classify.ts)
+// e.g. "hola salta" / "holasalta" / "HS" -> Project HolaSalta.
+model Alias {
+  id        String   @id @default(uuid())
+  term      String
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  moduleId  String?
+  module    Module?  @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([term])
+  @@map("aliases")
+}
+
+// ---------------------------------------------------------------------------
+// Item — the universal unit of knowledge (bug, idea, task, note, ...)
+// ---------------------------------------------------------------------------
+
+enum ItemType {
+  BUG
+  IDEA
+  TASK
+  NOTE
+  IMPROVEMENT
+  INCIDENT
+  BACKLOG
+  RESEARCH
+  DECISION
+  REMINDER
+}
+
+enum ItemPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ItemStatus {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+  DISCARDED
+}
+
+enum ItemSource {
+  USER_CAPTURE
+  CLAUDE_CODE
+  GITHUB_DOC
+  SYSTEM
+  IMPORT
+  IPHONE_SHORTCUT
+}
+
+// Per (project, type) monotonic counter used to build public ids like HS-BUG-0014.
+model ItemSequence {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  itemType  ItemType
+  lastValue Int      @default(0)
+
+  @@unique([projectId, itemType])
+  @@map("item_sequences")
+}
+
+model Item {
+  id          String       @id @default(uuid())
+  publicId    String       @unique // e.g. HS-BUG-0014
+  projectId   String
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  moduleId    String?
+  module      Module?      @relation(fields: [moduleId], references: [id], onDelete: SetNull)
+  type        ItemType
+  title       String
+  description String?
+  priority    ItemPriority @default(MEDIUM)
+  status      ItemStatus   @default(PENDING)
+  source      ItemSource   @default(USER_CAPTURE)
+  metadata    Json?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  resolvedAt  DateTime?
+  discardedAt DateTime?
+
+  captures         Capture[]
+  attachments      Attachment[]
+  commitLinks      ItemCommitLink[]
+  repositoryDocRefs RepositoryDocument[] @relation("ItemToRepositoryDocument")
+
+  @@index([projectId, status, priority])
+  @@index([projectId, type])
+  @@map("items")
+}
+
+// ---------------------------------------------------------------------------
+// GitHub integration
+// ---------------------------------------------------------------------------
+
+model Repository {
+  id              String    @id @default(uuid())
+  projectId       String?
+  project         Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  owner           String
+  name            String
+  defaultBranch   String    @default("main")
+  // Name of the env var holding the fine-grained PAT for this repo/org.
+  // The token value itself is NEVER stored in the database.
+  tokenEnvVar     String    @default("GITHUB_TOKEN")
+  webhookSecretEnvVar String?
+  isPrivate       Boolean   @default(true)
+  lastSyncedAt    DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  documents RepositoryDocument[]
+  syncs     RepositorySync[]
+  commitLinks ItemCommitLink[]
+
+  @@unique([owner, name])
+  @@map("repositories")
+}
+
+enum DocType {
+  README
+  ARCHITECTURE
+  BACKLOG
+  BUGS
+  INCIDENTS
+  DECISIONS
+  ROADMAP
+  CHANGELOG
+  CLAUDE_MD
+  OTHER
+}
+
+model RepositoryDocument {
+  id           String     @id @default(uuid())
+  repositoryId String
+  repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  path         String
+  docType      DocType    @default(OTHER)
+  contentHash  String
+  parsedItems  Int        @default(0)
+  lastSyncedAt DateTime   @default(now())
+
+  linkedItems Item[] @relation("ItemToRepositoryDocument")
+
+  @@unique([repositoryId, path])
+  @@map("repository_documents")
+}
+
+enum SyncTrigger {
+  MANUAL
+  WEBHOOK
+}
+
+enum SyncStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+model RepositorySync {
+  id            String      @id @default(uuid())
+  repositoryId  String
+  repository    Repository  @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  trigger       SyncTrigger @default(MANUAL)
+  status        SyncStatus  @default(RUNNING)
+  filesScanned  Int         @default(0)
+  itemsCreated  Int         @default(0)
+  itemsUpdated  Int         @default(0)
+  error         String?
+  startedAt     DateTime    @default(now())
+  finishedAt    DateTime?
+
+  @@map("repository_syncs")
+}
+
+// Relates an Item to the commit that fixed/introduced it, e.g. "fix: ... [HS-BUG-0142]"
+model ItemCommitLink {
+  id           String     @id @default(uuid())
+  itemId       String
+  item         Item       @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  repositoryId String
+  repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  commitSha    String
+  message      String
+  url          String?
+  createdAt    DateTime   @default(now())
+
+  @@unique([itemId, commitSha])
+  @@map("item_commit_links")
+}
+
+// ---------------------------------------------------------------------------
+// Captures + AI interpretation
+// ---------------------------------------------------------------------------
+
+enum CaptureMode {
+  QUICK
+  REVIEWED
+}
+
+enum CaptureStatus {
+  PENDING_REVIEW
+  CONFIRMED
+  DISCARDED
+}
+
+model Capture {
+  id           String        @id @default(uuid())
+  rawText      String
+  mode         CaptureMode   @default(QUICK)
+  status       CaptureStatus @default(CONFIRMED)
+  source       ItemSource    @default(USER_CAPTURE)
+  resultItemId String?
+  resultItem   Item?         @relation(fields: [resultItemId], references: [id], onDelete: SetNull)
+  createdAt    DateTime      @default(now())
+
+  interpretations AIInterpretation[]
+  attachments     Attachment[]
+
+  @@map("captures")
+}
+
+model AIInterpretation {
+  id                 String   @id @default(uuid())
+  captureId          String
+  capture            Capture  @relation(fields: [captureId], references: [id], onDelete: Cascade)
+  provider           String
+  model              String
+  suggestedProjectId String?
+  suggestedModuleId  String?
+  suggestedType      ItemType?
+  suggestedPriority  ItemPriority?
+  suggestedTitle     String?
+  confidence         Float?
+  tokensInput        Int?
+  tokensOutput       Int?
+  costEstimateUsd    Float?
+  durationMs         Int?
+  createdAt          DateTime @default(now())
+
+  @@map("ai_interpretations")
+}
+
+// ---------------------------------------------------------------------------
+// Attachments (images, audio, files) — R2-backed, ephemeral by default
+// ---------------------------------------------------------------------------
+
+enum AttachmentKind {
+  IMAGE
+  AUDIO
+  FILE
+}
+
+model Attachment {
+  id          String         @id @default(uuid())
+  itemId      String?
+  item        Item?          @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  captureId   String?
+  capture     Capture?       @relation(fields: [captureId], references: [id], onDelete: SetNull)
+  kind        AttachmentKind
+  storageKey  String // R2 object key
+  mimeType    String
+  sizeBytes   Int
+  ephemeral   Boolean        @default(true)
+  expiresAt   DateTime?
+  createdAt   DateTime       @default(now())
+
+  @@map("attachments")
+}
+
+// ---------------------------------------------------------------------------
+// Activities (time tracking) — policy: at most one active session at a time,
+// see docs/DECISIONS.md. Starting a new one auto-closes the previous one.
+// ---------------------------------------------------------------------------
+
+model ActivitySession {
+  id              String     @id @default(uuid())
+  projectId       String
+  project         Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  moduleId        String?
+  module          Module?    @relation(fields: [moduleId], references: [id], onDelete: SetNull)
+  label           String?
+  source          ItemSource @default(USER_CAPTURE)
+  metadata        Json?
+  startedAt       DateTime   @default(now())
+  endedAt         DateTime?
+  durationSeconds Int?
+
+  @@index([endedAt])
+  @@map("activity_sessions")
+}
+
+// ---------------------------------------------------------------------------
+// Quick events — generic structured events (water, mood, expense, etc.)
+// ---------------------------------------------------------------------------
+
+model QuickEvent {
+  id         String     @id @default(uuid())
+  projectId  String?
+  project    Project?   @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  eventType  String // e.g. "water", "mood", "expense"
+  value      Float?
+  unit       String?
+  metadata   Json?
+  source     ItemSource @default(USER_CAPTURE)
+  occurredAt DateTime   @default(now())
+
+  @@index([eventType, occurredAt])
+  @@map("quick_events")
+}
+
+// ---------------------------------------------------------------------------
+// Chat
+// ---------------------------------------------------------------------------
+
+model ChatConversation {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId String?
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  title     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  messages ChatMessage[]
+
+  @@map("chat_conversations")
+}
+
+enum ChatRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+model ChatMessage {
+  id             String           @id @default(uuid())
+  conversationId String
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           ChatRole
+  content        String
+  createdAt      DateTime         @default(now())
+
+  @@map("chat_messages")
+}
+
+// ---------------------------------------------------------------------------
+// AI usage / cost tracking
+// ---------------------------------------------------------------------------
+
+model AiUsageLog {
+  id              String   @id @default(uuid())
+  operation       String // classify | chat | summarize | extract
+  provider        String
+  model           String
+  tokensInput     Int?
+  tokensOutput    Int?
+  costEstimateUsd Float?
+  durationMs      Int?
+  createdAt       DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("ai_usage_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Audit trail
+// ---------------------------------------------------------------------------
+
+model AuditEvent {
+  id         String   @id @default(uuid())
+  actorUserId String?
+  actor      User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  action     String // item.created | item.resolved | project.created | repository.synced | ...
+  entityType String
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_events")
+}
