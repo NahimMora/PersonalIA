@@ -3,6 +3,34 @@
 Registro breve de decisiones no triviales tomadas durante la construcción.
 Formato: decisión → alternativas → por qué.
 
+## 2026-09-17 — App forzada a render dinámico; migraciones corren en el arranque, no en el build
+
+**Decisión:** `app/layout.tsx` exporta `export const dynamic = "force-dynamic"`
+(cascada a toda la app). `package.json`: `"build"` solo corre `prisma generate
+&& next build`; `"start"` corre `prisma migrate deploy && next start`.
+
+**Contexto real:** el primer deploy a Hostinger falló porque `prisma migrate
+deploy` (entonces parte del build) no encontraba `DATABASE_URL` — el paso de
+build de Hostinger no tiene garantizado acceso a las variables de entorno del
+panel de la Node.js Web App (esas se inyectan al proceso que corre `npm
+start`, no al que corre el build). Investigando más, `next build` **también**
+fallaba sin `DATABASE_URL`, porque intentaba pre-renderizar páginas que leen
+Prisma directamente en Server Components (el dashboard, el `TopBar` con la
+actividad en curso, etc.) — Next.js las trataba como estáticas por default.
+
+**Alternativas:** conseguir que Hostinger exponga `DATABASE_URL` en build
+(depende de configuración de su panel, no confiable); marcar página por
+página como dinámica en vez de toda la app.
+
+**Por qué esta:** ninguna página de este sistema debería ser estática nunca —
+es un dashboard personal autenticado con datos que cambian todo el tiempo, no
+hay nada que valga la pena cachear en build. Forzarlo a nivel de layout raíz
+es una sola línea y elimina la clase entera de problema (cualquier página
+nueva que use Prisma queda cubierta automáticamente). Mover `migrate deploy`
+al arranque es seguro porque es idempotente (no hace nada si no hay
+migraciones pendientes) y así solo necesita `DATABASE_URL` en el momento en
+que Hostinger garantiza que está disponible.
+
 ## 2026-09-17 — Actividades: una sesión activa a la vez
 
 **Decisión:** solo puede existir una `ActivitySession` sin `endedAt` en todo

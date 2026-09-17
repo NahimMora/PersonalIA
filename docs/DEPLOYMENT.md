@@ -8,7 +8,7 @@ Requisitos: Node 22+, Docker Desktop (solo para la base local).
 git clone <repo>
 cd segundo-cerebro
 cp .env.example .env        # completar GEMINI_API_KEY, ADMIN_EMAIL, etc.
-npm install --legacy-peer-deps
+npm install
 docker compose up -d db     # MySQL local
 npm run db:migrate          # aplica migraciones
 npm run db:seed             # usuario admin + proyectos de ejemplo
@@ -50,14 +50,30 @@ acceso root — MySQL vía hPanel, deploy por Git.
    plan). **Nunca** commitear estos valores.
 
 4. **Build.** El auto-deploy por Git de Hostinger corre siempre
-   `npm install && npm run build`, sin campo de build command configurable —
-   por eso `package.json` → `"build"` ya incluye
-   `prisma migrate deploy && prisma generate && next build`. Esto es
-   obligatorio: si una migración nueva no se aplica en el build, la app sirve
-   con el schema viejo.
+   `npm install && npm run build`, sin campo de build command configurable, y
+   **el paso de build no tiene garantizado acceso a las variables de entorno**
+   (`DATABASE_URL` incluida) — nos pasó justo eso en el primer intento de
+   deploy: `prisma migrate deploy` fallaba en el build con
+   `Environment variable not found: DATABASE_URL`. Por eso el reparto quedó
+   así:
+   - `"build": "prisma generate && next build"` — no toca la base. `prisma
+     generate` solo lee el schema (no necesita `DATABASE_URL`), y `next
+     build` tampoco la necesita porque **toda la app fuerza render dinámico**
+     (`export const dynamic = "force-dynamic"` en `app/layout.tsx`): ninguna
+     página se pre-renderiza en build consultando la base.
+   - `"start": "prisma migrate deploy && next start"` — las migraciones se
+     aplican recién al arrancar el proceso, momento en el que Hostinger **sí**
+     inyecta las variables de entorno configuradas en el panel de la Node.js
+     Web App. `migrate deploy` es idempotente (no hace nada si no hay
+     migraciones pendientes), así que correrlo en cada arranque es seguro.
 
-5. **Start command:** `npm start` (ya usa `next start -p ${PORT:-3000}`,
-   respeta el `PORT` que asigne Hostinger).
+   Si el build vuelve a fallar por una variable de entorno faltante, es señal
+   de que algo (un nuevo Server Component, un script) volvió a ejecutarse en
+   build time — mové esa lógica a runtime en vez de agregar la variable al
+   build.
+
+5. **Start command:** `npm start` (ya usa `next start`, que lee `PORT` de
+   forma nativa — no hace falta pasarlo a mano).
 
 6. **Dominio del panel.** Configurar el dominio/subdominio que vayas a usar
    (ej. `personal-ai.tudominio.com`) apuntando a la Node.js Web App desde
