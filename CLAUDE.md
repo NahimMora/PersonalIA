@@ -16,7 +16,7 @@ completo (ya lo estás haciendo) y `docs/CONTRIBUTING.md`.
 npm run lint && npx tsc --noEmit && npm run test && npm run build
 ```
 
-`npm run test` incluye tests de integración contra Postgres (necesita
+`npm run test` incluye tests de integración contra MySQL (necesita
 `docker compose up -d db` corriendo).
 
 ## Filosofía de documentación (ver docs/CONTRIBUTING.md para el detalle)

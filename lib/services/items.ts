@@ -21,11 +21,13 @@ export async function listItems(filters: ListItemsFilters) {
       status: filters.status ? { in: Array.isArray(filters.status) ? filters.status : [filters.status] } : undefined,
       type: filters.type,
       priority: filters.priority,
+      // MySQL's default collation (utf8mb4_*_ci) is already case-insensitive,
+      // unlike Postgres — no `mode` option needed/available here.
       OR: filters.q
         ? [
-            { title: { contains: filters.q, mode: "insensitive" } },
-            { description: { contains: filters.q, mode: "insensitive" } },
-            { publicId: { contains: filters.q, mode: "insensitive" } },
+            { title: { contains: filters.q } },
+            { description: { contains: filters.q } },
+            { publicId: { contains: filters.q } },
           ]
         : undefined,
     },

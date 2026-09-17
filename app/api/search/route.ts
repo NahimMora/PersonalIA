@@ -11,15 +11,17 @@ export async function GET(request: Request) {
         where: {
           OR: [
             { publicId: { equals: q.toUpperCase() } },
-            { title: { contains: q, mode: "insensitive" } },
-            { description: { contains: q, mode: "insensitive" } },
+            { title: { contains: q } },
+            { description: { contains: q } },
           ],
         },
         include: { project: true },
         take: 30,
       }),
       prisma.project.findMany({
-        where: { OR: [{ name: { contains: q, mode: "insensitive" } }, { code: { equals: q.toUpperCase() } }] },
+        // MySQL's default collation (utf8mb4_*_ci) is already case-insensitive,
+        // unlike Postgres — no `mode` option needed/available here.
+        where: { OR: [{ name: { contains: q } }, { code: { equals: q.toUpperCase() } }] },
         take: 10,
       }),
     ]);

@@ -10,7 +10,7 @@ IA, seguridad y deployment. Este README es solo el quickstart.
 
 ## Stack
 
-Next.js 16 (App Router) · TypeScript · PostgreSQL + Prisma · Auth.js v5 ·
+Next.js 16 (App Router) · TypeScript · MySQL + Prisma · Auth.js v5 ·
 Tailwind CSS 4 · Gemini (vía capa de abstracción propia) · Cloudflare R2 ·
 Docker.
 
@@ -29,9 +29,10 @@ npm run dev
 
 Abrí `http://localhost:3000`, logueate con `ADMIN_EMAIL`/`ADMIN_PASSWORD`.
 
-> Si el puerto 5432 ya está en uso en tu máquina (nos pasó en Windows con un
-> Postgres nativo corriendo en paralelo), cambiá el puerto mapeado en
-> `docker-compose.yml` y en `DATABASE_URL`.
+> Si el puerto 3306 ya está en uso en tu máquina (nos pasó en Windows con un
+> MySQL nativo corriendo en paralelo — el `docker-compose.yml` ya usa 53306
+> en el host para evitarlo), cambiá el puerto mapeado ahí y en `DATABASE_URL`
+> si igual colisiona.
 
 ## Comandos
 
@@ -41,7 +42,7 @@ Abrí `http://localhost:3000`, logueate con `ADMIN_EMAIL`/`ADMIN_PASSWORD`.
 | `npm run build` / `npm start` | Build y arranque de producción |
 | `npm run lint` | ESLint |
 | `npx tsc --noEmit` | Typecheck |
-| `npm run test` | Tests (Vitest — incluye integración contra Postgres local) |
+| `npm run test` | Tests (Vitest — incluye integración contra MySQL local) |
 | `npm run db:migrate` | Nueva migración en desarrollo |
 | `npm run db:deploy` | Aplicar migraciones en producción |
 | `npm run db:seed` | Seed (admin + ejemplos) |

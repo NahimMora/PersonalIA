@@ -1,13 +1,18 @@
+import { randomUUID } from "crypto";
 import type { ItemType, Prisma, PrismaClient } from "@prisma/client";
 
 /**
  * Builds human-readable ids like "HS-BUG-0014".
  *
- * The counter lives in `item_sequences`, keyed by (projectId, itemType), and is
- * incremented inside the same transaction that creates the Item so two
- * concurrent captures can never collide on the same number (upsert + atomic
- * increment is race-safe under Postgres' default read-committed isolation
- * because the upsert itself takes a row lock).
+ * The counter lives in `item_sequences`, keyed by (projectId, itemType).
+ * Prisma's `upsert()` on MySQL is NOT a single atomic statement (it does a
+ * SELECT then INSERT/UPDATE), so under real concurrency two requests can both
+ * see "no row yet" and both try to INSERT, and one loses with a unique
+ * constraint error instead of blocking safely (confirmed by the concurrency
+ * test in tests/items.integration.test.ts once we moved from Postgres to
+ * MySQL). Raw `INSERT ... ON DUPLICATE KEY UPDATE ... LAST_INSERT_ID(...)` is
+ * MySQL's actual atomic upsert-and-return-the-new-value primitive, so we use
+ * that instead — see docs/DECISIONS.md.
  */
 export async function nextItemPublicId(
   tx: Prisma.TransactionClient | PrismaClient,
@@ -15,13 +20,19 @@ export async function nextItemPublicId(
   projectCode: string,
   itemType: ItemType
 ): Promise<string> {
-  const sequence = await tx.itemSequence.upsert({
-    where: { projectId_itemType: { projectId, itemType } },
-    create: { projectId, itemType, lastValue: 1 },
-    update: { lastValue: { increment: 1 } },
-  });
+  // LAST_INSERT_ID(1) on the INSERT branch (not just the UPDATE branch) is
+  // required too — this table's `id` isn't AUTO_INCREMENT, so without it
+  // LAST_INSERT_ID() would stay whatever a previous, unrelated query left it
+  // at on the very first row for a given (project, type).
+  await tx.$executeRaw`
+    INSERT INTO item_sequences (id, projectId, itemType, lastValue)
+    VALUES (${randomUUID()}, ${projectId}, ${itemType}, LAST_INSERT_ID(1))
+    ON DUPLICATE KEY UPDATE lastValue = LAST_INSERT_ID(lastValue + 1)
+  `;
+  const rows = await tx.$queryRaw<{ v: bigint }[]>`SELECT LAST_INSERT_ID() as v`;
+  const lastValue = Number(rows[0].v);
 
-  const padded = String(sequence.lastValue).padStart(4, "0");
+  const padded = String(lastValue).padStart(4, "0");
   return `${projectCode}-${itemType}-${padded}`;
 }
 

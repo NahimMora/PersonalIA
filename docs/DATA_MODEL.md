@@ -24,7 +24,7 @@ vida (`status`, `priority`, timestamps, proyecto/módulo, comentarios futuros)
 y las consultas del dashboard/chat necesitan mezclarlos constantemente
 ("¿qué tengo pendiente en HolaSalta?" no distingue bug de tarea a priori).
 
-`ItemType` es un enum de Postgres (no una tabla `ItemType`) porque el pedido
+`ItemType` es un enum nativo de MySQL (no una tabla `ItemType`) porque el pedido
 explícito es "extensible" pero con una lista conocida — agregar un tipo nuevo
 es una migración de una línea, no justifica una tabla de catálogo.
 

@@ -46,13 +46,45 @@ determinístico y conservador es gratis, predecible, y documentado
 ## 2026-09-17 — Ids humanos vía contador por (proyecto, tipo)
 
 **Decisión:** `ItemSequence` guarda un contador por `(projectId, itemType)`,
-incrementado con `upsert` dentro de la misma transacción que crea el `Item`.
+incrementado atómicamente dentro de la misma transacción que crea el `Item`
+usando `INSERT ... ON DUPLICATE KEY UPDATE lastValue = LAST_INSERT_ID(...)`
+(`lib/ids.ts`) — la primitiva de MySQL para "upsert y devolver el valor nuevo"
+en una sola sentencia.
 
-**Alternativas:** contador global por proyecto (sin separar por tipo); UUID corto random.
+**Alternativas:** contador global por proyecto (sin separar por tipo); UUID
+corto random; `prisma.itemSequence.upsert()` (el helper de alto nivel de Prisma).
 
 **Por qué:** el pedido explícito es `HS-BUG-0014`, `HS-IDEA-0021` — cada tipo
-con su propia numeración. El `upsert` toma el row lock de Postgres, así que es
-seguro ante creaciones concurrentes (cubierto por test de integración).
+con su propia numeración. El `upsert()` de Prisma sobre MySQL **no** es una
+sola sentencia atómica (hace SELECT y después INSERT/UPDATE), así que bajo
+concurrencia real dos requests pueden ver "no existe la fila" al mismo tiempo
+y uno de los dos vuela con un error de constraint único en vez de esperar de
+forma segura — esto se detectó con el test de concurrencia de
+`tests/items.integration.test.ts` al migrar de Postgres (donde sí funcionaba,
+ver más abajo) a MySQL. El SQL crudo con `ON DUPLICATE KEY UPDATE` sí es
+atómico en InnoDB y quedó cubierto por el mismo test.
+
+## 2026-09-17 — Base de datos: MySQL en vez de PostgreSQL
+
+**Decisión:** se migró todo el schema de PostgreSQL a MySQL 8 (Prisma, Docker
+Compose, migraciones) después de construir la primera versión sobre Postgres.
+
+**Alternativas:** mantener Postgres y buscar un proveedor gestionado (Neon,
+Supabase) solo para esta app; usar SQLite.
+
+**Por qué:** la infraestructura real disponible del usuario es un plan
+compartido de Hostinger ("Node.js Web App"), que solo ofrece MySQL — no
+Postgres ni la posibilidad de correr Docker — y es el mismo tipo de hosting
+que ya usa para `lavozriojana-news-app`. Meter un Postgres gestionado externo
+solo para esta app suma una dependencia y un costo que el resto del sistema
+no necesita, en contra del principio de "reducir dependencia de servicios
+externos". Migrar el schema de vuelta si algún día hay un VPS propio es
+mecánico (Prisma no tiene features de Postgres irremplazables acá); lo único
+que hubo que ajustar: campos `String` largos necesitan `@db.Text` explícito
+(MySQL trunca a VARCHAR(191) por default vía Prisma), el filtro
+`mode: "insensitive"` de Prisma no existe en MySQL (no hace falta: la
+collation default `utf8mb4_unicode_ci` ya es case-insensitive), y el contador
+de ids (ver decisión de arriba) necesitó SQL crudo para seguir siendo atómico.
 
 ## 2026-09-17 — Auth: Credentials + JWT sobre tabla `users`
 

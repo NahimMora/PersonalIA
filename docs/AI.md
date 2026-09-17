@@ -66,8 +66,10 @@ Ajustes → Uso de IA.
 
 ## RAG / embeddings
 
-No implementado, a propósito. La combinación de SQL + aliases + full-text
-(`ILIKE` en Postgres) cubre el caso de uso actual ("¿qué tengo pendiente en
-X?"). Si en el futuro hace falta buscar semánticamente sobre texto largo
-(transcripciones de audio, documentación extensa), evaluar `pgvector` sobre la
-misma base de Postgres antes de introducir una vector DB dedicada.
+No implementado, a propósito. La combinación de SQL + aliases + `LIKE`
+case-insensitive (la collation `utf8mb4_unicode_ci` de MySQL ya lo es por
+default) cubre el caso de uso actual ("¿qué tengo pendiente en X?"). Si en el
+futuro hace falta buscar semánticamente sobre texto largo (transcripciones de
+audio, documentación extensa), evaluar `MeiliSearch`/`Typesense` (full-text
+dedicado, liviano) o el soporte de vectores de MySQL 9+ antes de introducir
+una vector DB separada — MySQL no tiene un equivalente maduro a `pgvector`.
