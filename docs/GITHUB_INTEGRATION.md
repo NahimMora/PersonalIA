@@ -61,6 +61,20 @@ para no encarecer ni volver impredecible el sync. Si tu `BUGS.md` no sigue
 esta convención, el sync igual guarda el documento completo (queda accesible
 en la pestaña "Documentación" del proyecto) pero no crea Items automáticamente.
 
+## Registro masivo (script de ejemplo)
+
+`scripts/register-repos.ts` registra una lista fija de repos + su proyecto y
+dispara el primer sync — es el script que se usó para conectar los 4 repos
+reales del usuario (`news-auto-publisher-lavozriojana`, `lavozriojana-news-app`,
+`ops-web-app`, `HolaSaltaManager`) sin pasar por la UI uno por uno:
+
+```bash
+npx tsx scripts/register-repos.ts
+```
+
+Editá el array `REPOS` del archivo si agregás/cambiás repositorios — no hay
+nada mágico ahí, es azúcar sobre `POST /api/repositories` + sync.
+
 ## Disparadores de sync
 
 1. **Manual:** botón "Sincronizar" en Ajustes → Repositorios (`POST /api/repositories/:id/sync`).
