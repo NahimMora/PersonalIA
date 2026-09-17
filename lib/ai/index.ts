@@ -10,8 +10,7 @@ import type {
 // Approximate public pricing (USD per 1M tokens). Only used to give a rough
 // cost signal in the usage dashboard — not for billing. Update as pricing changes.
 const PRICING_PER_MILLION_TOKENS: Record<string, { input: number; output: number }> = {
-  "gemini-2.0-flash": { input: 0.1, output: 0.4 },
-  "gemini-1.5-flash": { input: 0.075, output: 0.3 },
+  "gemini-3.6-flash": { input: 0.1, output: 0.4 },
 };
 
 let cachedProvider: AIProvider | null = null;
@@ -26,7 +25,7 @@ function getProvider(): AIProvider {
     );
   }
 
-  cachedProvider = new GeminiProvider(apiKey, process.env.GEMINI_MODEL || "gemini-2.0-flash");
+  cachedProvider = new GeminiProvider(apiKey, process.env.GEMINI_MODEL || "gemini-3.6-flash");
   return cachedProvider;
 }
 

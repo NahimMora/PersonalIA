@@ -60,7 +60,7 @@ export async function interpretCapture(text: string) {
     data: {
       captureId: capture.id,
       provider: "gemini",
-      model: process.env.GEMINI_MODEL || "gemini-2.0-flash",
+      model: process.env.GEMINI_MODEL || "gemini-3.6-flash",
       suggestedProjectId: suggestion.projectId,
       suggestedModuleId: suggestion.moduleId,
       suggestedType: suggestion.type,
@@ -90,7 +90,7 @@ async function interpretCaptureExisting(captureId: string, text: string) {
     data: {
       captureId,
       provider: "gemini",
-      model: process.env.GEMINI_MODEL || "gemini-2.0-flash",
+      model: process.env.GEMINI_MODEL || "gemini-3.6-flash",
       suggestedProjectId: suggestion.projectId,
       suggestedModuleId: suggestion.moduleId,
       suggestedType: suggestion.type,
