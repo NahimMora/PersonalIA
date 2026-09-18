@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 export function ModuleForm({ projectId }: { projectId: string }) {
   const router = useRouter();
@@ -28,15 +30,16 @@ export function ModuleForm({ projectId }: { projectId: string }) {
 
   return (
     <form onSubmit={submit} className="flex gap-2">
-      <input
+      <Input
         value={name}
         onChange={(e) => setName(e.target.value)}
         placeholder="Nuevo módulo..."
-        className="flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-xs"
+        aria-label="Nombre del módulo"
+        className="flex-1"
       />
-      <button disabled={loading} className="rounded-lg border border-border px-2 py-1.5 text-xs disabled:opacity-40">
+      <Button type="submit" variant="secondary" size="sm" disabled={loading}>
         Agregar
-      </button>
+      </Button>
     </form>
   );
 }

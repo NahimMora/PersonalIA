@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 export function ProjectForm({ workspaceId }: { workspaceId: string }) {
   const router = useRouter();
@@ -37,32 +39,41 @@ export function ProjectForm({ workspaceId }: { workspaceId: string }) {
     <form onSubmit={submit} className="space-y-2 rounded-xl border border-border bg-surface p-4">
       <p className="text-sm font-medium">Nuevo proyecto</p>
       <div className="flex gap-2">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Nombre (ej. HolaSalta)"
-          required
-          className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-        />
-        <input
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          placeholder="Código (HS)"
-          maxLength={10}
-          required
-          className="w-24 rounded-lg border border-border bg-background px-3 py-2 text-sm uppercase"
-        />
+        <div className="flex-1">
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Nombre (ej. HolaSalta)"
+            aria-label="Nombre del proyecto"
+            required
+          />
+        </div>
+        <div className="w-24">
+          <Input
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="Código (HS)"
+            aria-label="Código del proyecto"
+            maxLength={10}
+            required
+            className="uppercase"
+          />
+        </div>
       </div>
-      <input
+      <Input
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         placeholder="Descripción (opcional)"
-        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+        aria-label="Descripción del proyecto"
       />
-      {error && <p className="text-sm text-priority-critical">{error}</p>}
-      <button disabled={loading} className="w-full rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-foreground disabled:opacity-40">
-        Crear proyecto
-      </button>
+      {error && (
+        <p role="alert" className="text-sm text-priority-critical">
+          {error}
+        </p>
+      )}
+      <Button type="submit" variant="primary" className="w-full" disabled={loading}>
+        {loading ? "Creando…" : "Crear proyecto"}
+      </Button>
     </form>
   );
 }

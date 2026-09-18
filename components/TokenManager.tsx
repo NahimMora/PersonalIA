@@ -3,7 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ConfirmButton } from "@/components/ui/ConfirmButton";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { relativeTime } from "@/lib/ui-maps";
+import { Check, Copy } from "lucide-react";
 
 interface Token {
   id: string;
@@ -18,6 +21,7 @@ export function TokenManager({ tokens }: { tokens: Token[] }) {
   const [name, setName] = useState("");
   const [newToken, setNewToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
@@ -30,11 +34,19 @@ export function TokenManager({ tokens }: { tokens: Token[] }) {
       });
       const data = await res.json();
       setNewToken(data.token);
+      setCopied(false);
       setName("");
       router.refresh();
     } finally {
       setLoading(false);
     }
+  }
+
+  async function copyToken() {
+    if (!newToken) return;
+    await navigator.clipboard.writeText(newToken);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
 
   async function revoke(id: string) {
@@ -45,22 +57,29 @@ export function TokenManager({ tokens }: { tokens: Token[] }) {
   return (
     <div className="space-y-4">
       <form onSubmit={create} className="flex gap-2 rounded-xl border border-border bg-surface p-4">
-        <input
+        <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Nombre (ej. iPhone Shortcuts)"
+          aria-label="Nombre del token"
           required
-          className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+          className="flex-1"
         />
-        <button disabled={loading} className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-foreground disabled:opacity-40">
-          Generar
-        </button>
+        <Button type="submit" variant="primary" disabled={loading}>
+          {loading ? "Generando…" : "Generar"}
+        </Button>
       </form>
 
       {newToken && (
         <div className="rounded-xl border border-status-resolved bg-status-resolved/10 p-4">
           <p className="mb-2 text-sm font-medium">Copiá este token ahora — no se vuelve a mostrar:</p>
-          <code className="block break-all rounded-lg bg-surface p-2 text-xs">{newToken}</code>
+          <div className="flex items-center gap-2">
+            <code className="block flex-1 truncate rounded-lg bg-surface p-2 text-xs">{newToken}</code>
+            <Button type="button" variant="secondary" size="sm" onClick={copyToken} aria-label="Copiar token">
+              {copied ? <Check size={14} className="text-status-resolved" /> : <Copy size={14} />}
+              {copied ? "Copiado" : "Copiar"}
+            </Button>
+          </div>
         </div>
       )}
 

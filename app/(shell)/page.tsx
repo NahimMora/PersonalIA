@@ -48,6 +48,8 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      <h1 className="sr-only">Inicio</h1>
+
       {attention.length > 0 && (
         <section>
           <h2 className="mb-2.5 flex items-center gap-1.5 text-sm font-medium text-priority-critical">
@@ -72,7 +74,7 @@ export default async function DashboardPage() {
       )}
 
       <section>
-        <h1 className="mb-3 text-2xl font-semibold tracking-tight">Proyectos</h1>
+        <h2 className="mb-3 text-2xl font-semibold tracking-tight">Proyectos</h2>
 
         {allCaughtUp && (
           <p className="rounded-xl border border-border bg-surface p-8 text-center text-sm text-muted">
@@ -88,7 +90,7 @@ export default async function DashboardPage() {
               className="block rounded-xl border border-border bg-surface p-4 transition-colors hover:border-border-strong hover:bg-surface-hover"
             >
               <div className="mb-2 flex items-center justify-between">
-                <h2 className="font-medium">{project.name}</h2>
+                <h3 className="font-medium">{project.name}</h3>
                 <span className="font-mono text-xs text-muted">{project.code}</span>
               </div>
               <div className="mb-3 flex gap-3 text-xs text-muted">

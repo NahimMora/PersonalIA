@@ -90,6 +90,7 @@ export default function SearchPage() {
 
   return (
     <div className="space-y-4">
+      <h1 className="sr-only">Buscar</h1>
       <div className="relative">
         <Search size={16} strokeWidth={2} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
         <Input

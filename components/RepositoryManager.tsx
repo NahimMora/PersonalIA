@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { relativeTime } from "@/lib/ui-maps";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 interface Project {
   id: string;
@@ -29,6 +31,7 @@ export function RepositoryManager({ repositories, projects }: { repositories: Re
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [syncingId, setSyncingId] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   async function addRepo(e: React.FormEvent) {
     e.preventDefault();
@@ -53,12 +56,13 @@ export function RepositoryManager({ repositories, projects }: { repositories: Re
 
   async function sync(id: string) {
     setSyncingId(id);
+    setSyncError(null);
     try {
       const res = await fetch(`/api/repositories/${id}/sync`, { method: "POST" });
       if (!res.ok) throw new Error((await res.json()).error ?? "Error al sincronizar");
       router.refresh();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Error al sincronizar");
+      setSyncError(err instanceof Error ? err.message : "Error al sincronizar");
     } finally {
       setSyncingId(null);
     }
@@ -69,14 +73,21 @@ export function RepositoryManager({ repositories, projects }: { repositories: Re
       <form onSubmit={addRepo} className="space-y-2 rounded-xl border border-border bg-surface p-4">
         <p className="text-sm font-medium">Conectar repositorio</p>
         <div className="flex gap-2">
-          <input value={owner} onChange={(e) => setOwner(e.target.value)} placeholder="owner" required className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="repo" required className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+          <Input value={owner} onChange={(e) => setOwner(e.target.value)} placeholder="owner" aria-label="Owner del repositorio" required className="flex-1" />
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="repo" aria-label="Nombre del repositorio" required className="flex-1" />
         </div>
         <div className="flex gap-2">
-          <input value={defaultBranch} onChange={(e) => setDefaultBranch(e.target.value)} placeholder="rama (main)" className="w-28 rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-          <input value={tokenEnvVar} onChange={(e) => setTokenEnvVar(e.target.value)} placeholder="Env var del token" className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+          <div className="w-28">
+            <Input value={defaultBranch} onChange={(e) => setDefaultBranch(e.target.value)} placeholder="rama (main)" aria-label="Rama por defecto" />
+          </div>
+          <Input value={tokenEnvVar} onChange={(e) => setTokenEnvVar(e.target.value)} placeholder="Env var del token" aria-label="Variable de entorno del token" className="flex-1" />
         </div>
-        <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+        <select
+          value={projectId}
+          onChange={(e) => setProjectId(e.target.value)}
+          aria-label="Proyecto asociado"
+          className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-base focus-visible:outline-2 focus-visible:outline-accent"
+        >
           <option value="">Sin proyecto asociado (solo guarda docs)</option>
           {projects.map((p) => (
             <option key={p.id} value={p.id}>
@@ -87,11 +98,21 @@ export function RepositoryManager({ repositories, projects }: { repositories: Re
         <p className="text-xs text-muted">
           El token nunca se guarda acá: se lee de la variable de entorno indicada (definila en .env / en el servidor).
         </p>
-        {error && <p className="text-sm text-priority-critical">{error}</p>}
-        <button disabled={loading} className="w-full rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-foreground disabled:opacity-40">
-          Conectar
-        </button>
+        {error && (
+          <p role="alert" className="text-sm text-priority-critical">
+            {error}
+          </p>
+        )}
+        <Button type="submit" variant="primary" className="w-full" disabled={loading}>
+          {loading ? "Conectando…" : "Conectar"}
+        </Button>
       </form>
+
+      {syncError && (
+        <p role="alert" className="text-sm text-priority-critical">
+          {syncError}
+        </p>
+      )}
 
       <div className="divide-y divide-border rounded-xl border border-border bg-surface">
         {repositories.map((repo) => (
@@ -105,13 +126,9 @@ export function RepositoryManager({ repositories, projects }: { repositories: Re
                 {repo.lastSyncedAt ? `sync ${relativeTime(repo.lastSyncedAt)}` : "nunca sincronizado"}
               </p>
             </div>
-            <button
-              onClick={() => sync(repo.id)}
-              disabled={syncingId === repo.id}
-              className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-xs disabled:opacity-40"
-            >
-              {syncingId === repo.id ? "Sincronizando..." : "Sincronizar"}
-            </button>
+            <Button variant="secondary" size="sm" onClick={() => sync(repo.id)} disabled={syncingId === repo.id} className="shrink-0">
+              {syncingId === repo.id ? "Sincronizando…" : "Sincronizar"}
+            </Button>
           </div>
         ))}
         {repositories.length === 0 && <p className="p-6 text-center text-sm text-muted">Sin repositorios conectados.</p>}
