@@ -35,7 +35,7 @@ export default async function ProjectPage({
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-lg font-semibold">{project.name}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{project.name}</h1>
         {project.description && <p className="text-sm text-muted">{project.description}</p>}
       </div>
 

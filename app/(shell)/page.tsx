@@ -38,7 +38,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-lg font-semibold">Proyectos</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Proyectos</h1>
 
       {withWork.length === 0 && (
         <p className="rounded-xl border border-border bg-surface p-6 text-center text-sm text-muted">

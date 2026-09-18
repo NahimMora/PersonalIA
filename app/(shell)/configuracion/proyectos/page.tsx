@@ -12,7 +12,7 @@ export default async function ProjectsSettingsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-lg font-semibold">Proyectos y módulos</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Proyectos y módulos</h1>
       <ProjectForm workspaceId={workspace.id} />
 
       <div className="space-y-3">

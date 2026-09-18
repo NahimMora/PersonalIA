@@ -2,13 +2,17 @@
 
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
+import { Button } from "@/components/ui/button";
 
 export function ActivityStopButton() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
   return (
-    <button
+    <Button
+      type="button"
+      variant="secondary"
+      size="sm"
       disabled={pending}
       onClick={() =>
         startTransition(async () => {
@@ -16,9 +20,9 @@ export function ActivityStopButton() {
           router.refresh();
         })
       }
-      className="rounded-md border border-border px-2 py-1 text-xs font-medium hover:bg-surface-hover disabled:opacity-50"
+      className="shrink-0"
     >
-      Terminar
-    </button>
+      {pending ? "Terminando…" : "Terminar"}
+    </Button>
   );
 }

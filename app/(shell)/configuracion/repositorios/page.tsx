@@ -14,7 +14,7 @@ export default async function RepositoriesPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-lg font-semibold">Repositorios GitHub</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Repositorios GitHub</h1>
       <RepositoryManager repositories={serialized} projects={projects} />
     </div>
   );

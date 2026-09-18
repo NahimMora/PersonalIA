@@ -10,7 +10,7 @@ export default async function CapturePage() {
 
   return (
     <div className="mx-auto max-w-lg space-y-4">
-      <h1 className="text-lg font-semibold">Capturar</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Capturar</h1>
       <CaptureForm projects={projects} modules={modules} aiAvailable={isAIConfigured()} />
     </div>
   );

@@ -11,7 +11,7 @@ const links = [
 export default function SettingsPage() {
   return (
     <div className="space-y-4">
-      <h1 className="text-lg font-semibold">Ajustes</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Ajustes</h1>
       <div className="divide-y divide-border rounded-xl border border-border bg-surface">
         {links.map((l) => (
           <Link key={l.href} href={l.href} className="block px-4 py-3 hover:bg-surface-hover">

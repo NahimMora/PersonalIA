@@ -21,7 +21,7 @@ export default async function TokensPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-lg font-semibold">Tokens (Apple Shortcuts / NFC)</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Tokens (Apple Shortcuts / NFC)</h1>
       <p className="text-sm text-muted">Ver docs/SHORTCUTS_FUTURE.md para configurar el Shortcut con este token.</p>
       <TokenManager tokens={serialized} />
     </div>

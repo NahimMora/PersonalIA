@@ -7,7 +7,7 @@ export default async function AiUsagePage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-lg font-semibold">Uso de IA</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Uso de IA</h1>
 
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-xl border border-border bg-surface p-4">

@@ -9,7 +9,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
       <KeyboardShortcuts />
       <Sidebar />
       <TopBar />
-      <main className="mx-auto max-w-3xl px-4 pt-4 pb-24 md:px-8 md:pt-8 md:pb-12">{children}</main>
+      <main className="mx-auto max-w-4xl px-4 pt-4 pb-24 md:px-10 md:pt-8 md:pb-12">{children}</main>
       <BottomNav />
     </div>
   );
