@@ -34,24 +34,28 @@ export function ItemRow({
 }: ItemRowProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [done, setDone] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const [gone, setGone] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
-  async function updateStatus(status: "RESOLVED" | "DISCARDED") {
+  async function updateStatus(newStatus: "RESOLVED" | "DISCARDED") {
     startTransition(async () => {
       const res = await fetch(`/api/items/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status: newStatus }),
       });
       if (res.ok) {
-        setDone(true);
-        router.refresh();
+        setLeaving(true);
+        setTimeout(() => {
+          setGone(true);
+          router.refresh();
+        }, 150);
       }
     });
   }
 
-  if (done) return null;
+  if (gone) return null;
 
   const canExpand = Boolean(description && description !== title);
   const isDiscarded = status === "DISCARDED";
@@ -59,8 +63,9 @@ export function ItemRow({
   return (
     <div
       className={clsx(
-        "border-b border-l-[3px] border-border py-2.5 pr-3 pl-3.5 transition-colors last:border-b-0 hover:bg-surface-hover",
-        isDiscarded && "opacity-60"
+        "border-b border-l-[3px] border-border py-2.5 pr-3 pl-3.5 transition-all duration-150 last:border-b-0 hover:bg-surface-hover",
+        isDiscarded && "opacity-60",
+        leaving && "scale-[0.98] opacity-0"
       )}
       style={{ borderLeftColor: `var(--${priorityColorVar[priority]})` }}
     >
