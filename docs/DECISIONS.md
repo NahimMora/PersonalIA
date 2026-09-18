@@ -130,14 +130,19 @@ del middleware como en el handler real de `/api/auth/*`.
 versión no-beta de `next-auth` que lo arregle.
 
 **Por qué esta:** `getToken()` solo desencripta la cookie de sesión — no
-construye ninguna URL, así que nunca toca el código roto. `proxy.ts` además
-reescribe `x-forwarded-proto` a su primer valor y continúa con
-`NextResponse.next({ request: { headers } })`, así que cuando la request sigue
-camino hacia `/api/auth/*` (login, csrf, etc.) esos handlers ya ven un header
-limpio y tampoco crashean. La decisión de `secureCookie` (para que el nombre
-de cookie que busca `getToken` coincida con el que puso NextAuth al loguear)
-se deriva del esquema de `AUTH_URL`, no del header — ese header es
-justamente el que no es confiable acá.
+construye ninguna URL, así que nunca toca el código roto. La decisión de
+`secureCookie` (para que el nombre de cookie que busca `getToken` coincida
+con el que puso NextAuth al loguear) se deriva del esquema de `AUTH_URL`, no
+del header — ese header es justamente el que no es confiable acá.
+
+**Vuelta adicional:** el rewrite de headers de `proxy.ts`
+(`NextResponse.next({ request: { headers } })`) no le llegaba de forma
+confiable a los handlers reales de `/api/auth/*` en el `server.js` custom de
+Hostinger (funcionaba en local con `next start` normal, no en producción) —
+así que `app/api/auth/[...nextauth]/route.ts` **también** sanitiza
+`x-forwarded-proto` directamente sobre el `NextRequest` que recibe, antes de
+delegarlo a los handlers de NextAuth. Doble capa, cada una necesaria en su
+propio contexto de ejecución.
 
 ## 2026-09-18 — `trustHost` de Auth.js: variable de entorno, no config en código
 
