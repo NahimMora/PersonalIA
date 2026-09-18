@@ -58,8 +58,8 @@ export async function sendChatMessage(input: { userId: string; conversationId?: 
   const formatInstructions = input.voice
     ? `Tu respuesta va a ser leída en voz alta por un asistente de voz (Siri), no leída en pantalla.
 No uses markdown ni símbolos (nada de asteriscos, guiones de lista, corchetes ni numeración). Escribí en oraciones naturales,
-como si se lo contaras a alguien en voz alta. Mencioná el id de un item solo si hace falta para poder buscarlo después, y
-decilo de forma natural dentro de la oración (ej. "el bug con id HS-BUG-0014"), nunca como una lista de ids.`
+como si se lo contaras a alguien en voz alta. No menciones ids de items (nada de "HS-BUG-0014") — referite a cada item
+solo por su título o descripción, como lo diría una persona.`
     : `Cuando menciones un item, incluí su id (ej. HS-BUG-0014).`;
 
   const systemPrompt = `Sos el asistente del "Segundo Cerebro" personal del usuario. Respondé en español, de forma breve y concreta,
