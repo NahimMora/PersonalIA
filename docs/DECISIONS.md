@@ -141,8 +141,19 @@ confiable a los handlers reales de `/api/auth/*` en el `server.js` custom de
 Hostinger (funcionaba en local con `next start` normal, no en producción) —
 así que `app/api/auth/[...nextauth]/route.ts` **también** sanitiza
 `x-forwarded-proto` directamente sobre el `NextRequest` que recibe, antes de
-delegarlo a los handlers de NextAuth. Doble capa, cada una necesaria en su
-propio contexto de ejecución.
+delegarlo a los handlers de NextAuth.
+
+**Arreglo definitivo:** ni siquiera eso alcanzó — el mismo crash seguía
+apareciendo desde otro punto interno de `next-auth`, señal de que en algún
+lado lee los headers vía el contexto ambiental de Next.js (`headers()` /
+AsyncLocalStorage) en vez de únicamente el objeto `Request` que reciben los
+handlers. La solución que finalmente funcionó de punta a punta: parchear
+`Headers.prototype.get` una sola vez al cargar `lib/load-env.ts` (se importa
+desde `lib/db.ts`/`lib/auth.ts`/`lib/storage/r2.ts`, así que corre antes de
+la primera request) para que cualquier lectura de `x-forwarded-proto` con
+coma devuelva solo el primer valor — sin importar quién la lea ni cómo haya
+obtenido el objeto `Headers`. Las dos capas anteriores (proxy.ts y el route
+handler) quedan igual, son baratas e inofensivas como defensa adicional.
 
 ## 2026-09-18 — `trustHost` de Auth.js: variable de entorno, no config en código
 

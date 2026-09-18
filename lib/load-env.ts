@@ -42,3 +42,29 @@ function loadEnvFile(path: string): void {
 }
 
 loadEnvFile(join(process.cwd(), ".env"));
+
+// Cloudflare + Hostinger's own reverse proxy each append to `x-forwarded-proto`
+// instead of replacing it, so it arrives as e.g. "https, http". next-auth
+// (@auth/core, still beta) builds an internal URL straight from that header
+// without sanitizing it, which throws `TypeError: Invalid URL` on every
+// request — reproduced locally with this exact header value. Middleware-level
+// and route-handler-level request rewrites (see proxy.ts and
+// app/api/auth/[...nextauth]/route.ts) turned out not to be enough on their
+// own: something in next-auth's Next.js integration reads request headers via
+// Next's ambient `headers()`/AsyncLocalStorage context rather than solely the
+// Request object handlers receive, so those per-request rewrites don't reach
+// every internal read. Patching `Headers.prototype.get` here — once, at
+// module load, before any request is processed — covers every caller
+// regardless of how it obtained the Headers instance. See docs/DECISIONS.md.
+const patchedHeadersFlag = "__forwardedProtoPatched";
+if (!(globalThis as Record<string, unknown>)[patchedHeadersFlag]) {
+  const originalGet = Headers.prototype.get;
+  Headers.prototype.get = function patchedGet(name: string) {
+    const value = originalGet.call(this, name);
+    if (value && name.toLowerCase() === "x-forwarded-proto" && value.includes(",")) {
+      return value.split(",")[0].trim();
+    }
+    return value;
+  };
+  (globalThis as Record<string, unknown>)[patchedHeadersFlag] = true;
+}
