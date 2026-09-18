@@ -40,7 +40,7 @@ async function buildContext(projectId?: string): Promise<string> {
   return lines.join("\n");
 }
 
-export async function sendChatMessage(input: { userId: string; conversationId?: string; projectId?: string; message: string }) {
+export async function sendChatMessage(input: { userId: string; conversationId?: string; projectId?: string; message: string; voice?: boolean }) {
   const conversation = input.conversationId
     ? await prisma.chatConversation.findUniqueOrThrow({ where: { id: input.conversationId }, include: { messages: true } })
     : await prisma.chatConversation.create({
@@ -51,9 +51,20 @@ export async function sendChatMessage(input: { userId: string; conversationId?: 
   await prisma.chatMessage.create({ data: { conversationId: conversation.id, role: "USER", content: input.message } });
 
   const context = await buildContext(input.projectId ?? conversation.projectId ?? undefined);
+
+  // The Shortcuts/Siri channel feeds the reply straight into text-to-speech —
+  // no client renders markdown there, so "**[HS-BUG-0014]**" gets read aloud
+  // literally as punctuation. The web chat keeps the id-heavy, scannable style.
+  const formatInstructions = input.voice
+    ? `Tu respuesta va a ser leída en voz alta por un asistente de voz (Siri), no leída en pantalla.
+No uses markdown ni símbolos (nada de asteriscos, guiones de lista, corchetes ni numeración). Escribí en oraciones naturales,
+como si se lo contaras a alguien en voz alta. Mencioná el id de un item solo si hace falta para poder buscarlo después, y
+decilo de forma natural dentro de la oración (ej. "el bug con id HS-BUG-0014"), nunca como una lista de ids.`
+    : `Cuando menciones un item, incluí su id (ej. HS-BUG-0014).`;
+
   const systemPrompt = `Sos el asistente del "Segundo Cerebro" personal del usuario. Respondé en español, de forma breve y concreta,
 basándote ÚNICAMENTE en el contexto provisto a continuación. Si algo no está en el contexto, decilo en vez de inventar.
-Cuando menciones un item, incluí su id (ej. HS-BUG-0014).
+${formatInstructions}
 
 Contexto actual:
 ${context}`;

@@ -67,7 +67,7 @@ export async function POST(request: Request) {
         const project = body.projectCode
           ? await prisma.project.findUnique({ where: { code: body.projectCode.toUpperCase() } })
           : null;
-        return sendChatMessage({ userId: apiToken.userId, projectId: project?.id, message: body.message });
+        return sendChatMessage({ userId: apiToken.userId, projectId: project?.id, message: body.message, voice: true });
       }
     }
   });
