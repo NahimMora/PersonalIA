@@ -155,6 +155,16 @@ coma devuelva solo el primer valor — sin importar quién la lea ni cómo haya
 obtenido el objeto `Headers`. Las dos capas anteriores (proxy.ts y el route
 handler) quedan igual, son baratas e inofensivas como defensa adicional.
 
+**Nota de diagnóstico:** justo después de deployar este parche el crash
+siguió apareciendo en las primeras pruebas — un endpoint temporal
+(`/api/debug-env`, ya borrado) confirmó que `AUTH_URL` llegaba perfectamente
+limpio al proceso real. Reintentando unos segundos después, sin cambiar nada
+más, todo funcionó y siguió funcionando en pruebas repetidas — lo más
+probable es que Hostinger tarde unos segundos en propagar
+`touch tmp/restart.txt` a todos los workers que LiteSpeed levanta bajo
+demanda. Si un fix parece no aplicar recién deployado, esperar ~10-15s y
+reintentar antes de asumir que está mal.
+
 ## 2026-09-18 — `trustHost` de Auth.js: variable de entorno, no config en código
 
 **Decisión:** `AUTH_TRUST_HOST="true"` como variable de entorno; **no**
