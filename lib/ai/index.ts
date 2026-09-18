@@ -9,8 +9,10 @@ import type {
 
 // Approximate public pricing (USD per 1M tokens). Only used to give a rough
 // cost signal in the usage dashboard — not for billing. Update as pricing changes.
+// Source: https://ai.google.dev/gemini-api/docs/pricing (checked 2026-09-18).
+// Introductory rate through 2026-12-31; rises to input 1.50 / output 7.50 from 2027-01-01.
 const PRICING_PER_MILLION_TOKENS: Record<string, { input: number; output: number }> = {
-  "gemini-3.6-flash": { input: 0.1, output: 0.4 },
+  "gemini-3.6-flash": { input: 0.75, output: 3.75 },
 };
 
 let cachedProvider: AIProvider | null = null;
