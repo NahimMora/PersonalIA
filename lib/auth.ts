@@ -9,6 +9,12 @@ import { prisma } from "@/lib/db";
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
+  // Hostinger's Node.js hosting sits behind its own proxy/CDN layer, so the
+  // Host header Auth.js sees isn't automatically "trusted" by default and
+  // every request fails with `UntrustedHost` otherwise. AUTH_URL is already
+  // set to the real domain, so this isn't opening up host-header spoofing in
+  // a meaningful way here.
+  trustHost: true,
   providers: [
     Credentials({
       credentials: {
