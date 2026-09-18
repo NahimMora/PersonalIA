@@ -106,6 +106,39 @@ workspace temporal separado (ver receta completa en `docs/DEPLOYMENT.md`).
 **Nunca tocar nada bajo `~/domains/` de otro sitio** — este servidor aloja
 varios dominios en la misma cuenta.
 
+## 2026-09-18 — Middleware usa `getToken()`, no el wrapper `auth(...)`
+
+**Decisión:** `proxy.ts` verifica la sesión con `getToken()` de
+`next-auth/jwt` en vez de envolver el middleware con `auth(...)` (la HOF que
+exporta `lib/auth.ts`). Además normaliza el header `x-forwarded-proto` antes
+de dejar pasar la request.
+
+**Causa real, encontrada recién después de arreglar la carga de `.env`** (una
+vez que `AUTH_URL`/`AUTH_TRUST_HOST` finalmente llegaban de verdad al
+proceso, apareció este bug *distinto*, tapado hasta entonces): Hostinger
+sirve la app detrás de Cloudflare + su propio proxy, y esa cadena manda
+`x-forwarded-proto` como lista separada por comas (`"https, http"` — cada hop
+agrega su valor en vez de reemplazarlo). `next-auth@5.0.0-beta.32` arma una
+URL interna directamente con ese header sin sanitizarlo
+(`new URL(protocolo + "//" + host)`), y `"https, http:"` no es un protocolo
+válido → `TypeError: Invalid URL`, en cada request, reproducido también en
+local mandando ese mismo header a mano. Pasa tanto en el wrapper `auth(...)`
+del middleware como en el handler real de `/api/auth/*`.
+
+**Alternativas:** parchear el header solo para el wrapper `auth(...)`
+(no alcanza: el handler de `/api/auth/*` en sí también rompe); esperar una
+versión no-beta de `next-auth` que lo arregle.
+
+**Por qué esta:** `getToken()` solo desencripta la cookie de sesión — no
+construye ninguna URL, así que nunca toca el código roto. `proxy.ts` además
+reescribe `x-forwarded-proto` a su primer valor y continúa con
+`NextResponse.next({ request: { headers } })`, así que cuando la request sigue
+camino hacia `/api/auth/*` (login, csrf, etc.) esos handlers ya ven un header
+limpio y tampoco crashean. La decisión de `secureCookie` (para que el nombre
+de cookie que busca `getToken` coincida con el que puso NextAuth al loguear)
+se deriva del esquema de `AUTH_URL`, no del header — ese header es
+justamente el que no es confiable acá.
+
 ## 2026-09-18 — `trustHost` de Auth.js: variable de entorno, no config en código
 
 **Decisión:** `AUTH_TRUST_HOST="true"` como variable de entorno; **no**
