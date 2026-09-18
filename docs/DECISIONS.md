@@ -31,6 +31,73 @@ al arranque es seguro porque es idempotente (no hace nada si no hay
 migraciones pendientes) y así solo necesita `DATABASE_URL` en el momento en
 que Hostinger garantiza que está disponible.
 
+## 2026-09-18 — Cómo Hostinger realmente ejecuta esta app (y por qué `npm start` nunca corre)
+
+**Hallazgo** (investigando por qué el admin nunca quedaba creado en producción):
+el "Node.js Web App" de Hostinger para Next.js **no ejecuta `npm start`**. Su
+pipeline real es:
+
+1. Deploy (por push a `main`, automático): `npm install && npm run build`,
+   registrado en `~/domains/<dominio>/hbuilds/logs/<id>/*.log`.
+2. Para servir, genera su **propio `server.js`** en
+   `~/domains/<dominio>/hbuilds/current/nodejs/server.js`, que llama
+   directamente a `next/dist/server/lib/start-server` — nunca pasa por
+   `package.json` → `"start"`. Por eso mover `prisma migrate deploy` a
+   `"start"` (decisión de abajo, ya obsoleta) nunca se ejecutó en la
+   práctica: hubo que correrlo a mano por SSH la primera vez.
+3. El directorio servido (`hbuilds/current/nodejs/`, symlink a
+   `hbuilds/versions/<build-id>/nodejs/`) **no incluye `prisma/`** ni los
+   binarios de `prisma`/`tsx` (parecen podarse de `node_modules` después del
+   build) — para correr comandos de Prisma a mano hace falta copiar
+   `prisma/` desde `hbuilds/last-source/` y hacer un `npm install` completo
+   en un directorio aparte (nunca dentro de `hbuilds/current`).
+4. Las variables de entorno del panel se guardan en
+   `~/domains/<dominio>/hbuilds/config/.env`, pero **ese archivo no se copia
+   solo** al directorio que realmente se sirve — hay que copiarlo a mano a
+   `hbuilds/current/nodejs/.env` (Next.js sí lo autocarga desde ahí) después
+   de cada deploy nuevo, o esperar a que el próximo deploy lo incluya
+   automáticamente (no confirmado que lo haga siempre).
+5. Reinicio: tocar `hbuilds/current/nodejs/tmp/restart.txt` (convención
+   estilo Passenger). Los procesos (`lsnode:...`) no quedan siempre
+   residentes — LiteSpeed los levanta bajo demanda.
+
+**Nodejs/npm no están en el PATH de una sesión SSH no interactiva** — usar
+`/opt/alt/alt-nodejs22/root/usr/bin/{node,npm,npx}` directamente.
+
+**Implicancia práctica:** después de cada deploy con cambios de schema o de
+variables de entorno, hay que (por ahora, a mano, por SSH):
+```bash
+cp ~/domains/ops.moraapps.com/hbuilds/config/.env ~/domains/ops.moraapps.com/hbuilds/current/nodejs/.env
+chmod 600 ~/domains/ops.moraapps.com/hbuilds/current/nodejs/.env
+touch ~/domains/ops.moraapps.com/hbuilds/current/nodejs/tmp/restart.txt
+```
+y, si hubo migraciones nuevas, correr `prisma migrate deploy` desde un
+workspace temporal separado (ver receta completa en `docs/DEPLOYMENT.md`).
+**Nunca tocar nada bajo `~/domains/` de otro sitio** — este servidor aloja
+varios dominios en la misma cuenta.
+
+## 2026-09-18 — `trustHost` de Auth.js: variable de entorno, no config en código
+
+**Decisión:** `AUTH_TRUST_HOST="true"` como variable de entorno; **no**
+`trustHost: true` en el objeto de config de `NextAuth()` (`lib/auth.ts`).
+
+**Contexto real:** sin nada de esto, producción tiraba
+`[auth][error] UntrustedHost` en cada request (Hostinger sirve detrás de
+Cloudflare + su propio proxy). Solo con la env var, funcionó perfecto
+(login real probado en `ops.moraapps.com`). Al agregar además
+`trustHost: true` explícito en el código y redeployar, **toda** la app
+(incluido `/login`, que no requiere sesión) empezó a tirar `500` con
+`TypeError: Invalid URL` en cada request — no se pudo aislar la causa exacta
+dentro de `next-auth@5.0.0-beta.32` (beta), pero revertir el cambio de código
+y dejar solo la env var restauró el funcionamiento normal de inmediato.
+
+**Por qué:** la auto-detección de `trustHost` vía `AUTH_URL`/`AUTH_TRUST_HOST`
+(`@auth/core`'s `setEnvDefaults`) ya cubre exactamente este caso de uso y está
+probada funcionando en producción real; forzarlo en código no aporta nada
+extra acá y en esta versión concreta rompe algo. Si se actualiza `next-auth`
+en el futuro, vale la pena reintentar `trustHost: true` en código para ver si
+el bug ya no reproduce — pero probarlo primero en un deploy de bajo riesgo.
+
 ## 2026-09-17 — Actividades: una sesión activa a la vez
 
 **Decisión:** solo puede existir una `ActivitySession` sin `endedAt` en todo

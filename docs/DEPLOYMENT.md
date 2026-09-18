@@ -45,47 +45,81 @@ acceso root — MySQL vía hPanel, deploy por Git.
    es ese.
 
 3. **Variables de entorno.** Cargar todas las de `.env.example` con valores
-   reales en el panel de "Node.js Web App" (o en un `.env` en la raíz de la
-   app si Hostinger lee el archivo — confirmar cuál de los dos métodos usa tu
-   plan). **Nunca** commitear estos valores.
+   reales en el panel de "Node.js Web App" → Environment Variables, **más**
+   `AUTH_TRUST_HOST="true"` (ver `docs/DECISIONS.md` — necesario detrás del
+   proxy de Hostinger/Cloudflare, y tiene que ser variable de entorno, no
+   código). **Nunca** commitear estos valores.
 
-4. **Build.** El auto-deploy por Git de Hostinger corre siempre
+4. **Build.** El auto-deploy por Git de Hostinger corre
    `npm install && npm run build`, sin campo de build command configurable, y
    **el paso de build no tiene garantizado acceso a las variables de entorno**
-   (`DATABASE_URL` incluida) — nos pasó justo eso en el primer intento de
-   deploy: `prisma migrate deploy` fallaba en el build con
-   `Environment variable not found: DATABASE_URL`. Por eso el reparto quedó
-   así:
-   - `"build": "prisma generate && next build"` — no toca la base. `prisma
-     generate` solo lee el schema (no necesita `DATABASE_URL`), y `next
-     build` tampoco la necesita porque **toda la app fuerza render dinámico**
-     (`export const dynamic = "force-dynamic"` en `app/layout.tsx`): ninguna
-     página se pre-renderiza en build consultando la base.
-   - `"start": "prisma migrate deploy && next start"` — las migraciones se
-     aplican recién al arrancar el proceso, momento en el que Hostinger **sí**
-     inyecta las variables de entorno configuradas en el panel de la Node.js
-     Web App. `migrate deploy` es idempotente (no hace nada si no hay
-     migraciones pendientes), así que correrlo en cada arranque es seguro.
+   (`DATABASE_URL` incluida) — nos pasó justo eso en el primer intento real de
+   deploy. Por eso:
+   - `"build": "prisma generate && next build"` — no toca la base (`prisma
+     generate` solo lee el schema; `next build` tampoco necesita DB porque
+     **toda la app fuerza render dinámico**, `export const dynamic =
+     "force-dynamic"` en `app/layout.tsx`).
+   - `"start": "prisma migrate deploy && next start"` — pensado para
+     correr las migraciones al arrancar. **Importante:** en la práctica
+     Hostinger **no ejecuta este script** (ver punto 5) — esto documenta la
+     intención para cualquier otro hosting que sí respete `npm start`, pero
+     en Hostinger las migraciones hay que aplicarlas a mano (punto 6).
 
-   Si el build vuelve a fallar por una variable de entorno faltante, es señal
-   de que algo (un nuevo Server Component, un script) volvió a ejecutarse en
-   build time — mové esa lógica a runtime en vez de agregar la variable al
-   build.
+5. **Cómo Hostinger sirve la app en realidad (no vía `npm start`).** Genera su
+   propio `server.js` en `~/domains/<dominio>/hbuilds/current/nodejs/` que
+   llama a `next/dist/server/lib/start-server` directamente — `package.json`
+   → `"start"` nunca se invoca. Ese mismo directorio **no incluye la carpeta
+   `prisma/`** ni los binarios de `prisma`/`tsx` (se podan del `node_modules`
+   final). Ver el detalle completo, verificado por SSH, en `docs/DECISIONS.md`
+   ("Cómo Hostinger realmente ejecuta esta app").
 
-5. **Start command:** `npm start` (ya usa `next start`, que lee `PORT` de
-   forma nativa — no hace falta pasarlo a mano).
+6. **Primer deploy (y cualquiera con migraciones nuevas): aplicar a mano por
+   SSH.** Nunca ejecutar nada bajo la carpeta de otro dominio en la misma
+   cuenta — solo tocar `~/domains/<tu-dominio>/` y un directorio propio fuera
+   de `~/domains/`.
 
-6. **Dominio del panel.** Configurar el dominio/subdominio que vayas a usar
-   (ej. `personal-ai.tudominio.com`) apuntando a la Node.js Web App desde
-   hPanel.
+   ```bash
+   ssh tu-host   # alias de tu ~/.ssh/config
+   export PATH=/opt/alt/alt-nodejs22/root/usr/bin:$PATH   # node/npm no están en el PATH por default
 
-7. **Webhooks de GitHub.** Necesitan que `/api/github/webhook` sea alcanzable
-   públicamente por HTTPS — Hostinger ya sirve HTTPS por defecto en el
-   dominio configurado, no hace falta Nginx/certbot propio acá.
+   # Workspace aislado, nunca dentro de hbuilds/current:
+   mkdir -p ~/tmp_migrate_app
+   cp -r ~/domains/<dominio>/hbuilds/last-source/{package.json,package-lock.json,prisma} ~/tmp_migrate_app/
+   cd ~/tmp_migrate_app && npm install
 
-8. **Reinicio tras cada push.** Si el auto-deploy de Hostinger no reinicia
-   solo, hacerlo manualmente desde hPanel (o por SSH si el plan lo permite)
-   después de cada deploy con migraciones nuevas.
+   DATABASE_URL="mysql://usuario:pass@localhost/basededatos?socket=/var/lib/mysql/mysql.sock" \
+     npx prisma migrate deploy
+
+   DATABASE_URL="..." ADMIN_EMAIL="..." ADMIN_PASSWORD="..." \
+     npx tsx prisma/seed.ts   # solo la primera vez
+
+   cd ~ && rm -rf tmp_migrate_app
+   ```
+
+7. **Que la app arranque con las variables de entorno reales.** El panel
+   guarda lo que cargaste en el paso 3 en
+   `~/domains/<dominio>/hbuilds/config/.env`, pero **ese archivo no llega
+   solo** al directorio que Next.js realmente lee (`hbuilds/current/nodejs/`,
+   donde Next.js sí autocarga un `.env` si existe ahí). Después de cada
+   deploy:
+
+   ```bash
+   cp ~/domains/<dominio>/hbuilds/config/.env ~/domains/<dominio>/hbuilds/current/nodejs/.env
+   chmod 600 ~/domains/<dominio>/hbuilds/current/nodejs/.env
+   touch ~/domains/<dominio>/hbuilds/current/nodejs/tmp/restart.txt   # reinicio estilo Passenger
+   ```
+
+   Sin este paso el proceso arranca sin ninguna variable configurada (así
+   estuvo corriendo el primer deploy real, silenciosamente, hasta que se
+   detectó). Automatizarlo (script post-deploy, o confirmar si un deploy
+   futuro sí propaga el archivo solo) queda como pendiente real.
+
+8. **Dominio y HTTPS.** Ya vienen resueltos por el panel de la Node.js Web
+   App (HTTPS de Hostinger + Cloudflare por delante) — no hace falta
+   Nginx/certbot propio.
+
+9. **Webhooks de GitHub.** Necesitan que `/api/github/webhook` sea alcanzable
+   públicamente por HTTPS — ya lo es una vez configurado el dominio.
 
 ## Alternativa: VPS propio con Docker (si en algún momento hay uno)
 

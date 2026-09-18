@@ -6,15 +6,16 @@ import { prisma } from "@/lib/db";
 // Single-user-first auth: credentials are checked against the `users` table so
 // adding more accounts later (Phase "multi-user") needs no migration, just
 // more rows. Session strategy is JWT to avoid a sessions table for a personal app.
+// Hostinger's Node.js hosting sits behind its own proxy/CDN layer, so the
+// Host header Auth.js sees isn't automatically "trusted" by default and every
+// request fails with `UntrustedHost` otherwise. Set via the AUTH_TRUST_HOST=true
+// env var (see .env.example / docs/DEPLOYMENT.md) rather than `trustHost: true`
+// here in code — explicitly setting it in this config object triggered an
+// unrelated "Invalid URL" crash on every request in production (this exact
+// next-auth beta version); env-var-driven auto-detection works correctly.
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
-  // Hostinger's Node.js hosting sits behind its own proxy/CDN layer, so the
-  // Host header Auth.js sees isn't automatically "trusted" by default and
-  // every request fails with `UntrustedHost` otherwise. AUTH_URL is already
-  // set to the real domain, so this isn't opening up host-header spoofing in
-  // a meaningful way here.
-  trustHost: true,
   providers: [
     Credentials({
       credentials: {
