@@ -16,6 +16,14 @@ const TABS = [
 
 type TabKey = (typeof TABS)[number]["key"];
 
+const emptyStateCopy: Record<Exclude<TabKey, "documentacion">, string> = {
+  pendientes: "Sin pendientes. Usá Capturar para agregar una tarea.",
+  ideas: "Todavía no hay ideas anotadas para este proyecto.",
+  incidentes: "Sin incidentes abiertos.",
+  backlog: "El backlog está vacío.",
+  historial: "Todavía no hay items resueltos ni descartados.",
+};
+
 export default async function ProjectPage({
   params,
   searchParams,
@@ -30,7 +38,7 @@ export default async function ProjectPage({
   const project = await prisma.project.findFirst({ where: { OR: [{ slug }, { id: slug }] }, include: { modules: true } });
   if (!project) notFound();
 
-  const items = await loadTabItems(project.id, tab);
+  const [items, counts] = await Promise.all([loadTabItems(project.id, tab), loadTabCounts(project.id)]);
 
   return (
     <div className="space-y-4">
@@ -41,18 +49,31 @@ export default async function ProjectPage({
 
       <div className="-mx-4 overflow-x-auto px-4">
         <div className="flex w-max gap-1 rounded-lg border border-border bg-surface p-1">
-          {TABS.map((t) => (
-            <Link
-              key={t.key}
-              href={`/proyectos/${slug}?tab=${t.key}`}
-              className={clsx(
-                "rounded-md px-3 py-1.5 text-sm whitespace-nowrap",
-                tab === t.key ? "bg-accent text-accent-foreground" : "text-muted hover:bg-surface-hover"
-              )}
-            >
-              {t.label}
-            </Link>
-          ))}
+          {TABS.map((t) => {
+            const count = counts[t.key as keyof typeof counts];
+            return (
+              <Link
+                key={t.key}
+                href={`/proyectos/${slug}?tab=${t.key}`}
+                className={clsx(
+                  "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm whitespace-nowrap",
+                  tab === t.key ? "bg-accent text-accent-foreground" : "text-muted hover:bg-surface-hover"
+                )}
+              >
+                {t.label}
+                {typeof count === "number" && count > 0 && (
+                  <span
+                    className={clsx(
+                      "rounded-full px-1.5 py-0.5 text-[10px] leading-none font-medium",
+                      tab === t.key ? "bg-accent-foreground/20" : "bg-surface-sunken text-muted"
+                    )}
+                  >
+                    {count}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
         </div>
       </div>
 
@@ -61,7 +82,7 @@ export default async function ProjectPage({
       ) : (
         <div className="rounded-xl border border-border bg-surface">
           {items.length === 0 ? (
-            <p className="p-6 text-center text-sm text-muted">Nada acá.</p>
+            <p className="p-6 text-center text-sm text-muted">{emptyStateCopy[tab]}</p>
           ) : (
             items.map((item) => (
               <ItemRow
@@ -69,11 +90,13 @@ export default async function ProjectPage({
                 id={item.id}
                 publicId={item.publicId}
                 title={item.title}
+                description={item.description}
                 type={item.type}
                 priority={item.priority}
                 moduleName={item.module?.name}
                 createdAt={item.createdAt.toISOString()}
                 showActions={tab !== "historial"}
+                status={tab === "historial" ? item.status : undefined}
               />
             ))
           )}
@@ -109,6 +132,17 @@ async function loadTabItems(projectId: string, tab: TabKey) {
     default:
       return [];
   }
+}
+
+async function loadTabCounts(projectId: string) {
+  const activeStatus = { in: [ItemStatus.PENDING, ItemStatus.IN_PROGRESS] };
+  const [pendientes, ideas, incidentes, backlog] = await Promise.all([
+    prisma.item.count({ where: { projectId, status: activeStatus, type: { notIn: [ItemType.IDEA, ItemType.INCIDENT, ItemType.BACKLOG] } } }),
+    prisma.item.count({ where: { projectId, status: activeStatus, type: ItemType.IDEA } }),
+    prisma.item.count({ where: { projectId, status: activeStatus, type: ItemType.INCIDENT } }),
+    prisma.item.count({ where: { projectId, status: activeStatus, type: ItemType.BACKLOG } }),
+  ]);
+  return { pendientes, ideas, incidentes, backlog };
 }
 
 async function ProjectDocs({ projectId }: { projectId: string }) {
