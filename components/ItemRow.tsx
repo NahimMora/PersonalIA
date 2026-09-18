@@ -97,7 +97,7 @@ export function ItemRow({
               <button
                 disabled={pending}
                 onClick={() => updateStatus("RESOLVED")}
-                className="rounded-lg p-2 text-status-resolved hover:bg-status-resolved/10 disabled:opacity-40"
+                className="flex h-10 w-10 items-center justify-center rounded-lg text-status-resolved hover:bg-status-resolved/10 disabled:opacity-40"
                 aria-label={`Resolver ${publicId}`}
               >
                 <Check size={16} />
@@ -105,7 +105,7 @@ export function ItemRow({
               <button
                 disabled={pending}
                 onClick={() => updateStatus("DISCARDED")}
-                className="rounded-lg p-2 text-muted hover:bg-surface-sunken disabled:opacity-40"
+                className="flex h-10 w-10 items-center justify-center rounded-lg text-muted hover:bg-surface-sunken disabled:opacity-40"
                 aria-label={`Descartar ${publicId}`}
               >
                 <X size={16} />

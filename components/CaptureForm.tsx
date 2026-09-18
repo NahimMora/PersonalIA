@@ -192,7 +192,7 @@ export function CaptureForm({ projects, modules, aiAvailable }: { projects: Proj
         <button
           type="button"
           className={clsx(
-            "flex-1 rounded-md py-1.5 font-medium transition-colors",
+            "flex-1 rounded-md py-2 font-medium transition-colors",
             mode === "quick" ? "bg-accent text-accent-foreground" : "text-muted hover:text-foreground"
           )}
           onClick={() => {
@@ -206,7 +206,7 @@ export function CaptureForm({ projects, modules, aiAvailable }: { projects: Proj
           type="button"
           disabled={!aiAvailable}
           className={clsx(
-            "flex-1 rounded-md py-1.5 font-medium transition-colors",
+            "flex-1 rounded-md py-2 font-medium transition-colors",
             mode === "reviewed" ? "bg-accent text-accent-foreground" : "text-muted hover:text-foreground",
             !aiAvailable && "opacity-40"
           )}

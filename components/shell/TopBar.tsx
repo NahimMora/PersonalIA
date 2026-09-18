@@ -7,7 +7,7 @@ export async function TopBar() {
   const activity = await getCurrentActivity();
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-surface/95 backdrop-blur md:hidden">
+    <header className="sticky top-0 z-30 border-b border-border bg-surface/95 pt-[env(safe-area-inset-top)] backdrop-blur md:hidden">
       <div className="flex h-14 items-center justify-between px-4">
         <Link href="/" className="font-semibold tracking-tight">
           Segundo Cerebro
