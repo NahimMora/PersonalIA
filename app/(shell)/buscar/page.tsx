@@ -54,7 +54,7 @@ export default function SearchPage() {
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="Buscar por texto o ID (ej. HS-BUG-0014)..."
-        className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-base outline-none focus:border-accent"
+        className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-base focus:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-1"
       />
 
       {displayProjects.length > 0 && (

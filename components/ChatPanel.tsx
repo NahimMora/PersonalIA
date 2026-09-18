@@ -81,7 +81,7 @@ export function ChatPanel({ projects, aiAvailable }: { projects: Project[]; aiAv
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && send()}
           placeholder="Escribí tu pregunta..."
-          className="flex-1 rounded-lg border border-border bg-surface px-3 py-2.5 text-base outline-none focus:border-accent"
+          className="flex-1 rounded-lg border border-border bg-surface px-3 py-2.5 text-base focus:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-1"
         />
         <button onClick={send} disabled={loading} className="rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-accent-foreground disabled:opacity-40">
           Enviar

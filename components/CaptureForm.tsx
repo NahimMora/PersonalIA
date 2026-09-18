@@ -1,9 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { clsx } from "clsx";
 import { priorityLabel, typeLabel } from "@/lib/ui-maps";
+import { Button } from "@/components/ui/button";
+import { Input, Textarea } from "@/components/ui/input";
+import { CheckCircle2 } from "lucide-react";
 
 interface Project {
   id: string;
@@ -30,6 +33,7 @@ type Mode = "quick" | "reviewed";
 
 export function CaptureForm({ projects, modules, aiAvailable }: { projects: Project[]; modules: Module[]; aiAvailable: boolean }) {
   const router = useRouter();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [mode, setMode] = useState<Mode>("quick");
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -47,13 +51,23 @@ export function CaptureForm({ projects, modules, aiAvailable }: { projects: Proj
     description: "",
   });
 
+  // Success is a quiet pulse, not a wall you have to dismiss — it clears on
+  // its own so the field is always ready for the next capture.
+  useEffect(() => {
+    if (!successMessage) return;
+    const t = setTimeout(() => setSuccessMessage(null), 4000);
+    return () => clearTimeout(t);
+  }, [successMessage]);
+
   function reset() {
     setText("");
     setCaptureId(null);
     setInterpretation(null);
+    requestAnimationFrame(() => textareaRef.current?.focus());
   }
 
   async function submitQuick() {
+    if (!text.trim()) return;
     setLoading(true);
     setErrorMessage(null);
     try {
@@ -64,7 +78,8 @@ export function CaptureForm({ projects, modules, aiAvailable }: { projects: Proj
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Error al capturar");
       const data = await res.json();
-      setSuccessMessage(`Guardado como ${data.item.publicId}`);
+      const project = projects.find((p) => p.id === data.item.projectId);
+      setSuccessMessage(`${data.item.publicId}${project ? ` en ${project.name}` : ""}`);
       reset();
       router.refresh();
     } catch (error) {
@@ -75,6 +90,7 @@ export function CaptureForm({ projects, modules, aiAvailable }: { projects: Proj
   }
 
   async function submitInterpret() {
+    if (!text.trim()) return;
     setLoading(true);
     setErrorMessage(null);
     try {
@@ -145,7 +161,8 @@ export function CaptureForm({ projects, modules, aiAvailable }: { projects: Proj
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Error al confirmar");
       const item = await res.json();
-      setSuccessMessage(`Guardado como ${item.publicId}`);
+      const project = projects.find((p) => p.id === item.projectId);
+      setSuccessMessage(`${item.publicId}${project ? ` en ${project.name}` : ""}`);
       reset();
       router.refresh();
     } catch (error) {
@@ -167,12 +184,17 @@ export function CaptureForm({ projects, modules, aiAvailable }: { projects: Proj
   }
 
   const availableModules = modules.filter((m) => m.projectId === form.projectId);
+  const confidencePct = interpretation ? Math.round((interpretation.confidence ?? 0) * 100) : 0;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex rounded-lg border border-border bg-surface p-1 text-sm">
         <button
-          className={clsx("flex-1 rounded-md py-1.5", mode === "quick" ? "bg-accent text-accent-foreground" : "text-muted")}
+          type="button"
+          className={clsx(
+            "flex-1 rounded-md py-1.5 font-medium transition-colors",
+            mode === "quick" ? "bg-accent text-accent-foreground" : "text-muted hover:text-foreground"
+          )}
           onClick={() => {
             setMode("quick");
             reset();
@@ -181,10 +203,11 @@ export function CaptureForm({ projects, modules, aiAvailable }: { projects: Proj
           Rápida
         </button>
         <button
+          type="button"
           disabled={!aiAvailable}
           className={clsx(
-            "flex-1 rounded-md py-1.5",
-            mode === "reviewed" ? "bg-accent text-accent-foreground" : "text-muted",
+            "flex-1 rounded-md py-1.5 font-medium transition-colors",
+            mode === "reviewed" ? "bg-accent text-accent-foreground" : "text-muted hover:text-foreground",
             !aiAvailable && "opacity-40"
           )}
           onClick={() => {
@@ -199,44 +222,69 @@ export function CaptureForm({ projects, modules, aiAvailable }: { projects: Proj
 
       {!interpretation && (
         <>
-          <textarea
+          <Textarea
+            ref={textareaRef}
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Escribí una idea, bug, tarea, nota o recordatorio..."
+            onKeyDown={(e) => {
+              if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                e.preventDefault();
+                if (mode === "quick") void submitQuick();
+                else void submitInterpret();
+              }
+            }}
+            placeholder="Escribí una idea, bug, tarea, nota o recordatorio…"
             rows={5}
-            className="w-full resize-none rounded-lg border border-border bg-surface px-3 py-2.5 text-base outline-none focus:border-accent"
             autoFocus
           />
-          <button
+          <Button
+            type="button"
+            variant="primary"
+            className="w-full"
             disabled={loading || text.trim().length === 0}
             onClick={mode === "quick" ? submitQuick : submitInterpret}
-            className="w-full rounded-lg bg-accent px-3 py-2.5 font-medium text-accent-foreground disabled:opacity-40"
           >
-            {loading ? "Guardando..." : mode === "quick" ? "Guardar" : "Interpretar con IA"}
-          </button>
+            {loading ? "Guardando…" : mode === "quick" ? "Guardar" : "Interpretar con IA"}
+            <kbd className="ml-1 hidden rounded border border-accent-foreground/25 px-1 font-mono text-[10px] opacity-70 sm:inline-block">
+              ⌘⏎
+            </kbd>
+          </Button>
         </>
       )}
 
       {interpretation && (
         <div className="space-y-3 rounded-xl border border-border bg-surface p-4">
-          <p className="text-xs text-muted">
-            Confianza de la IA: {Math.round((interpretation.confidence ?? 0) * 100)}%
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted">Sugerencia de la IA</p>
+            <span
+              className={clsx(
+                "rounded-full px-2 py-0.5 text-[11px] font-medium",
+                confidencePct >= 70
+                  ? "bg-status-resolved/15 text-status-resolved"
+                  : confidencePct >= 40
+                    ? "bg-priority-high/15 text-priority-high"
+                    : "bg-surface-sunken text-muted"
+              )}
+            >
+              {confidencePct}% confianza
+            </span>
+          </div>
 
-          <input
+          <Input
             value={form.title}
             onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
             placeholder="Título"
+            aria-label="Título del item"
           />
 
           <div className="grid grid-cols-2 gap-2">
             <select
               value={form.projectId}
               onChange={(e) => setForm((f) => ({ ...f, projectId: e.target.value, moduleId: "" }))}
-              className="rounded-lg border border-border bg-background px-2 py-2 text-sm"
+              aria-label="Proyecto"
+              className="rounded-lg border border-border bg-background px-2 py-2 text-sm focus-visible:outline-2 focus-visible:outline-accent"
             >
-              <option value="">Proyecto...</option>
+              <option value="">Proyecto…</option>
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -246,7 +294,8 @@ export function CaptureForm({ projects, modules, aiAvailable }: { projects: Proj
             <select
               value={form.moduleId}
               onChange={(e) => setForm((f) => ({ ...f, moduleId: e.target.value }))}
-              className="rounded-lg border border-border bg-background px-2 py-2 text-sm"
+              aria-label="Módulo"
+              className="rounded-lg border border-border bg-background px-2 py-2 text-sm focus-visible:outline-2 focus-visible:outline-accent"
             >
               <option value="">Sin módulo</option>
               {availableModules.map((m) => (
@@ -258,7 +307,8 @@ export function CaptureForm({ projects, modules, aiAvailable }: { projects: Proj
             <select
               value={form.type}
               onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
-              className="rounded-lg border border-border bg-background px-2 py-2 text-sm"
+              aria-label="Tipo"
+              className="rounded-lg border border-border bg-background px-2 py-2 text-sm focus-visible:outline-2 focus-visible:outline-accent"
             >
               {Object.entries(typeLabel).map(([value, label]) => (
                 <option key={value} value={value}>
@@ -269,7 +319,8 @@ export function CaptureForm({ projects, modules, aiAvailable }: { projects: Proj
             <select
               value={form.priority}
               onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))}
-              className="rounded-lg border border-border bg-background px-2 py-2 text-sm"
+              aria-label="Prioridad"
+              className="rounded-lg border border-border bg-background px-2 py-2 text-sm focus-visible:outline-2 focus-visible:outline-accent"
             >
               {Object.entries(priorityLabel).map(([value, label]) => (
                 <option key={value} value={value}>
@@ -280,21 +331,28 @@ export function CaptureForm({ projects, modules, aiAvailable }: { projects: Proj
           </div>
 
           <div className="flex gap-2">
-            <button onClick={confirm} disabled={loading} className="flex-1 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-foreground disabled:opacity-40">
+            <Button type="button" variant="primary" className="flex-1" onClick={confirm} disabled={loading}>
               Confirmar
-            </button>
-            <button onClick={reinterpret} disabled={loading} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-40">
+            </Button>
+            <Button type="button" variant="secondary" onClick={reinterpret} disabled={loading}>
               Reinterpretar
-            </button>
-            <button onClick={discard} disabled={loading} className="rounded-lg border border-border px-3 py-2 text-sm text-priority-critical disabled:opacity-40">
+            </Button>
+            <Button type="button" variant="danger" onClick={discard} disabled={loading}>
               Descartar
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
-      {successMessage && <p className="text-sm text-status-resolved">{successMessage}</p>}
-      {errorMessage && <p className="text-sm text-priority-critical">{errorMessage}</p>}
+      <div aria-live="polite">
+        {successMessage && (
+          <p className="flex items-center gap-1.5 text-sm text-status-resolved">
+            <CheckCircle2 size={15} strokeWidth={2.25} />
+            Guardado como {successMessage}
+          </p>
+        )}
+        {errorMessage && <p className="text-sm text-priority-critical">{errorMessage}</p>}
+      </div>
     </div>
   );
 }

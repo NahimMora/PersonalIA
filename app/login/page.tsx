@@ -41,9 +41,10 @@ export default async function LoginPage({
               id="email"
               name="email"
               type="email"
+              autoComplete="email"
               required
               autoFocus
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-base outline-none focus:border-accent"
+              className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-base focus:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-1"
             />
           </div>
           <div>
@@ -54,8 +55,9 @@ export default async function LoginPage({
               id="password"
               name="password"
               type="password"
+              autoComplete="current-password"
               required
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-base outline-none focus:border-accent"
+              className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-base focus:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-1"
             />
           </div>
 
