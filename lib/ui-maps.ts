@@ -41,6 +41,11 @@ export const typeLabel: Record<ItemType, string> = {
   REMINDER: "Recordatorio",
 };
 
+/** "1 pendiente" vs "3 pendientes" — count nouns pluralized correctly instead of always plural. */
+export function countLabel(count: number, singular: string, plural: string): string {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
 export function relativeTime(date: Date | string): string {
   const d = typeof date === "string" ? new Date(date) : date;
   const diffMs = Date.now() - d.getTime();
