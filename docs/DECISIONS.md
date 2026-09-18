@@ -3,6 +3,36 @@
 Registro breve de decisiones no triviales tomadas durante la construcción.
 Formato: decisión → alternativas → por qué.
 
+## 2026-09-18 — `.env` se carga a mano con código propio, sin paquete `dotenv`
+
+**Decisión:** `lib/load-env.ts` implementa un parser de `.env` mínimo a mano
+(sin depender del paquete `dotenv`) e importado como primera línea en
+`lib/db.ts`, `lib/auth.ts` y `lib/storage/r2.ts`.
+
+**Contexto real (dos capas de bug, ambas encontradas depurando el primer
+deploy real):**
+1. El `server.js` que autogenera Hostinger para su "Node.js Web App" llama a
+   `next/dist/server/lib/start-server` directamente — nunca pasa por el CLI
+   de `next`, que es quien normalmente carga `.env` vía `@next/env`. Ningún
+   mecanismo de autocarga de Next.js se ejecuta nunca en este entorno, aunque
+   el `.env` esté físicamente al lado de `server.js`.
+2. El primer intento de arreglar esto con el paquete `dotenv` tampoco
+   funcionó: Hostinger **borra el `package.json` de cada subpaquete dentro de
+   `node_modules`** en el directorio que realmente sirve (confirmado por
+   SSH). El punto de entrada real de `dotenv` es `lib/main.js`, resuelto vía
+   `package.json#main` — sin ese archivo, `require("dotenv")` tira
+   `MODULE_NOT_FOUND` aunque la carpeta del paquete exista.
+
+**Alternativas:** mover `dotenv` a `dependencies` (no alcanza, ver punto 2);
+convencer a Hostinger de no podar `node_modules` (no hay control sobre eso).
+
+**Por qué esta:** un loader que es código fuente propio (compilado
+directamente en el bundle del servidor, nunca un paquete suelto en
+`node_modules`) es inmune a cualquier poda de `node_modules` que haga
+Hostinger. `dotenv` sigue en `devDependencies` para los scripts que sí corren
+en un `npm install` completo y normal (`tests/setup.ts`,
+`scripts/register-repos.ts`, migraciones/seed manuales por SSH).
+
 ## 2026-09-17 — App forzada a render dinámico; migraciones corren en el arranque, no en el build
 
 **Decisión:** `app/layout.tsx` exporta `export const dynamic = "force-dynamic"`
