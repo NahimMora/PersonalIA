@@ -246,7 +246,7 @@ export function CaptureForm({ projects, modules, aiAvailable }: { projects: Proj
           >
             {loading ? "Guardando…" : mode === "quick" ? "Guardar" : "Interpretar con IA"}
             <kbd className="ml-1 hidden rounded border border-accent-foreground/25 px-1 font-mono text-[10px] opacity-70 sm:inline-block">
-              ⌘⏎
+              ⌘Enter
             </kbd>
           </Button>
         </>
