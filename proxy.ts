@@ -28,7 +28,8 @@ export default async function proxy(req: NextRequest) {
   const isPublic =
     pathname.startsWith("/login") ||
     pathname.startsWith("/api/auth") ||
-    pathname.startsWith("/api/shortcuts");
+    pathname.startsWith("/api/shortcuts") ||
+    pathname.startsWith("/api/debug-env"); // TEMPORARY, remove after diagnosing the Hostinger deploy
 
   const continueWithCleanHeaders = () =>
     NextResponse.next({ request: { headers: requestHeaders } });
