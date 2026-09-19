@@ -3,11 +3,13 @@ import { auth } from "@/lib/auth";
 import { createItemSchema } from "@/lib/validation";
 import { listItems } from "@/lib/services/items";
 import { createItem } from "@/lib/services/items";
-import { handleRoute } from "@/lib/api-helpers";
+import { handleRoute, jsonError } from "@/lib/api-helpers";
 import { ItemPriority, ItemStatus, ItemType } from "@prisma/client";
 
 export async function GET(request: Request) {
   return handleRoute(async () => {
+    const session = await auth();
+    if (!session?.user?.id) return jsonError("unauthorized", 401);
     const { searchParams } = new URL(request.url);
     const items = await listItems({
       projectId: searchParams.get("projectId") ?? undefined,
@@ -24,6 +26,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   return handleRoute(async () => {
     const session = await auth();
+    if (!session?.user?.id) return jsonError("unauthorized", 401);
     const body = createItemSchema.parse(await request.json());
     const item = await createItem({ ...body, source: "USER_CAPTURE", actorUserId: session?.user?.id });
     return NextResponse.json(item, { status: 201 });

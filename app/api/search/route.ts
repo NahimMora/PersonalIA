@@ -1,8 +1,11 @@
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { handleRoute } from "@/lib/api-helpers";
+import { handleRoute, jsonError } from "@/lib/api-helpers";
 
 export async function GET(request: Request) {
   return handleRoute(async () => {
+    const session = await auth();
+    if (!session?.user?.id) return jsonError("unauthorized", 401);
     const q = new URL(request.url).searchParams.get("q")?.trim() ?? "";
     if (!q) return { items: [], projects: [] };
 

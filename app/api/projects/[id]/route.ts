@@ -1,9 +1,12 @@
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { handleRoute, jsonError } from "@/lib/api-helpers";
 import { ItemStatus } from "@prisma/client";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   return handleRoute(async () => {
+    const session = await auth();
+    if (!session?.user?.id) return jsonError("unauthorized", 401);
     const { id } = await params;
     const project = await prisma.project.findFirst({
       where: { OR: [{ id }, { slug: id }] },
