@@ -11,12 +11,14 @@ import { recordAudit } from "@/lib/audit";
  * aliases only (instant, free) and falls back to Inbox. Always type=NOTE —
  * the point is speed; reclassify later from the dashboard if needed.
  */
-export async function quickCapture(input: { text: string; source: ItemSource }) {
+export async function quickCapture(input: { text: string; source: ItemSource; projectId?: string; moduleId?: string }) {
   const capture = await prisma.capture.create({
     data: { rawText: input.text, mode: CaptureMode.QUICK, status: CaptureStatus.CONFIRMED, source: input.source },
   });
 
-  const match = await classifyDeterministic(input.text);
+  // An explicit projectId (e.g. from another repo's own CLAUDE.md, which
+  // already knows which project it maps to) skips alias-guessing entirely.
+  const match = input.projectId ? { projectId: input.projectId, moduleId: input.moduleId ?? null } : await classifyDeterministic(input.text);
   const project = match.projectId
     ? await prisma.project.findUnique({ where: { id: match.projectId } })
     : await getOrCreateInboxProject();
@@ -131,22 +133,24 @@ export async function confirmCapture(
  * quickCapture) for whatever the AI didn't confidently suggest, since
  * there's nobody there to fill the gaps by hand.
  */
-export async function interpretAndAutoConfirm(text: string, actorUserId?: string) {
+export async function interpretAndAutoConfirm(text: string, actorUserId?: string, override?: { projectId?: string; moduleId?: string }) {
   const { capture, interpretation, aiAvailable } = await interpretCapture(text);
 
   if (!aiAvailable || !interpretation) {
     throw new Error("La IA no está configurada (falta GEMINI_API_KEY).");
   }
 
-  const project = interpretation.suggestedProjectId
-    ? await prisma.project.findUnique({ where: { id: interpretation.suggestedProjectId } })
-    : null;
+  // An explicit projectId (e.g. a repo-scoped caller that already knows its
+  // own project/module) wins over the AI's guess — type/priority/title still
+  // come from the AI, only the destination is pinned.
+  const projectId = override?.projectId ?? interpretation.suggestedProjectId;
+  const project = projectId ? await prisma.project.findUnique({ where: { id: projectId } }) : null;
 
   const item = await confirmCapture(
     capture.id,
     {
       projectId: (project ?? (await getOrCreateInboxProject())).id,
-      moduleId: interpretation.suggestedModuleId,
+      moduleId: override?.moduleId ?? interpretation.suggestedModuleId,
       type: interpretation.suggestedType ?? ItemType.NOTE,
       priority: interpretation.suggestedPriority ?? ItemPriority.MEDIUM,
       title: interpretation.suggestedTitle ?? text.slice(0, 80),
