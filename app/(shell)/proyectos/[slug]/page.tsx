@@ -4,8 +4,10 @@ import { clsx } from "clsx";
 import { prisma } from "@/lib/db";
 import { ItemStatus, ItemType } from "@prisma/client";
 import { ItemRow } from "@/components/ItemRow";
+import { ItemBoard } from "@/components/ItemBoard";
 
 const TABS = [
+  { key: "tablero", label: "Tablero" },
   { key: "pendientes", label: "Pendientes" },
   { key: "ideas", label: "Ideas" },
   { key: "incidentes", label: "Incidentes" },
@@ -16,7 +18,7 @@ const TABS = [
 
 type TabKey = (typeof TABS)[number]["key"];
 
-const emptyStateCopy: Record<Exclude<TabKey, "documentacion">, string> = {
+const emptyStateCopy: Record<Exclude<TabKey, "documentacion" | "tablero">, string> = {
   pendientes: "Sin pendientes. Usá Capturar para agregar una tarea.",
   ideas: "Todavía no hay ideas anotadas para este proyecto.",
   incidentes: "Sin incidentes abiertos.",
@@ -38,7 +40,11 @@ export default async function ProjectPage({
   const project = await prisma.project.findFirst({ where: { OR: [{ slug }, { id: slug }] }, include: { modules: true } });
   if (!project) notFound();
 
-  const [items, counts] = await Promise.all([loadTabItems(project.id, tab), loadTabCounts(project.id)]);
+  const [items, counts, boardItems] = await Promise.all([
+    loadTabItems(project.id, tab),
+    loadTabCounts(project.id),
+    tab === "tablero" ? loadBoardItems(project.id) : Promise.resolve([]),
+  ]);
 
   return (
     <div className="space-y-4">
@@ -79,6 +85,17 @@ export default async function ProjectPage({
 
       {tab === "documentacion" ? (
         <ProjectDocs projectId={project.id} />
+      ) : tab === "tablero" ? (
+        <ItemBoard
+          items={boardItems.map((item) => ({
+            id: item.id,
+            publicId: item.publicId,
+            title: item.title,
+            type: item.type,
+            priority: item.priority,
+            moduleName: item.module?.name,
+          }))}
+        />
       ) : (
         <div className="rounded-xl border border-border bg-surface">
           {items.length === 0 ? (
@@ -132,6 +149,14 @@ async function loadTabItems(projectId: string, tab: TabKey) {
     default:
       return [];
   }
+}
+
+async function loadBoardItems(projectId: string) {
+  return prisma.item.findMany({
+    where: { projectId, status: { in: [ItemStatus.PENDING, ItemStatus.IN_PROGRESS] } },
+    orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
+    include: { module: true },
+  });
 }
 
 async function loadTabCounts(projectId: string) {

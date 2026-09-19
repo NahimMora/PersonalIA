@@ -81,6 +81,7 @@ export async function patchItem(
   patch: {
     title?: string;
     description?: string | null;
+    type?: ItemType;
     priority?: ItemPriority;
     status?: ItemStatus;
     moduleId?: string | null;

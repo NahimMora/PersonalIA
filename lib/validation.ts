@@ -25,6 +25,7 @@ export const createItemSchema = z.object({
 export const patchItemSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   description: z.string().max(10_000).nullable().optional(),
+  type: z.nativeEnum(ItemType).optional(),
   priority: z.nativeEnum(ItemPriority).optional(),
   status: z.nativeEnum(ItemStatus).optional(),
   moduleId: z.string().uuid().nullable().optional(),
