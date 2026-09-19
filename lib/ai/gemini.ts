@@ -51,8 +51,26 @@ ${projectList || "(ninguno)"}
 Módulos disponibles:
 ${moduleList || "(ninguno)"}
 
-Tipos válidos: ${Object.values(ItemType).join(", ")}
+Tipos válidos, con su significado (elegí el que mejor describe la INTENCIÓN del texto, no solo la primera palabra):
+- NOTE: apunte informativo para recordar o consultar después, sin ninguna acción pendiente asociada.
+- TASK: algo concreto y ya decidido para hacer — el usuario está pidiendo que se haga, no proponiéndolo.
+- BUG: un defecto conocido y puntual en algo que ya existe (algo anda mal, pero no es una caída activa ahora mismo).
+- IDEA: una propuesta o posibilidad todavía SIN decidir — "estaría bueno", "podríamos", algo para evaluar más adelante, no un pedido directo de hacer algo ya.
+- IMPROVEMENT: un cambio concreto y decidido para mejorar algo que YA funciona (a diferencia de BUG, que es algo roto).
+- INCIDENT: un problema activo que está afectando el funcionamiento AHORA MISMO (algo se cayó, dejó de andar) — requiere atención inmediata, a diferencia de BUG.
+- BACKLOG: algo decidido para hacer pero explícitamente para más adelante, sin urgencia actual.
+- RESEARCH: hay que investigar o averiguar algo antes de poder actuar; todavía no es una tarea de implementación.
+- DECISION: una decisión de arquitectura o producto que se tomó (o hay que tomar) y conviene dejar registrada.
+- REMINDER: algo puntual para recordar en un momento dado, no necesariamente ligado al desarrollo (ej. renovar un dominio).
+Ante la duda entre IDEA y TASK: si el texto propone o sugiere ("sería bueno", "podríamos", "capaz habría que"), es IDEA;
+si pide o instruye una acción directa ("agregar", "arreglar", "cambiar"), es TASK.
+
 Prioridades válidas: ${Object.values(ItemPriority).join(", ")}
+
+Para el título: extraé la acción o el tema central en lenguaje natural, como lo diría una persona.
+NO repitas el nombre del proyecto ni del módulo en el título — esos ya quedan guardados aparte
+(ej. si el texto es "Refaccionar preparadas de Ops en HolaSalta" y elegís el proyecto HolaSalta y
+el módulo Ops, el título debe ser "Refaccionar preparadas", no repetir "Ops" ni "HolaSalta").
 
 Texto de la captura:
 """
