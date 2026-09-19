@@ -54,7 +54,7 @@ export default async function ProjectPage({
       </div>
 
       <div className="-mx-4 overflow-x-auto px-4">
-        <div className="flex w-max gap-1 rounded-lg border border-border bg-surface p-1">
+        <div className="flex min-w-full gap-1 rounded-lg border border-border bg-surface p-1">
           {TABS.map((t) => {
             const count = counts[t.key as keyof typeof counts];
             return (
@@ -62,7 +62,7 @@ export default async function ProjectPage({
                 key={t.key}
                 href={`/proyectos/${slug}?tab=${t.key}`}
                 className={clsx(
-                  "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm whitespace-nowrap",
+                  "flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-sm whitespace-nowrap",
                   tab === t.key ? "bg-accent text-accent-foreground" : "text-muted hover:bg-surface-hover"
                 )}
               >
@@ -91,6 +91,7 @@ export default async function ProjectPage({
             id: item.id,
             publicId: item.publicId,
             title: item.title,
+            description: item.description,
             type: item.type,
             priority: item.priority,
             moduleName: item.module?.name,

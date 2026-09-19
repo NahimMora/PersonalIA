@@ -4,8 +4,9 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Badge } from "@/components/ui/badge";
 import { priorityColorVar, priorityLabel, relativeTime, typeLabel } from "@/lib/ui-maps";
-import { Check, X } from "lucide-react";
+import { Check, Pencil, X } from "lucide-react";
 import { clsx } from "clsx";
+import { ItemEditForm } from "@/components/ItemEditForm";
 
 interface ItemRowProps {
   id: string;
@@ -37,6 +38,8 @@ export function ItemRow({
   const [leaving, setLeaving] = useState(false);
   const [gone, setGone] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [display, setDisplay] = useState({ title, description, priority });
 
   async function updateStatus(newStatus: "RESOLVED" | "DISCARDED") {
     startTransition(async () => {
@@ -57,8 +60,28 @@ export function ItemRow({
 
   if (gone) return null;
 
-  const canExpand = Boolean(description && description !== title);
+  const canExpand = Boolean(display.description && display.description !== display.title);
   const isDiscarded = status === "DISCARDED";
+
+  if (editing) {
+    return (
+      <div className="border-b border-l-[3px] border-border py-2.5 pr-3 pl-3.5 last:border-b-0" style={{ borderLeftColor: `var(--${priorityColorVar[display.priority]})` }}>
+        <p className="mb-1.5 font-mono text-[11px] text-muted">{publicId}</p>
+        <ItemEditForm
+          id={id}
+          title={display.title}
+          description={display.description}
+          priority={display.priority}
+          onCancel={() => setEditing(false)}
+          onSaved={(saved) => {
+            setDisplay(saved);
+            setEditing(false);
+            router.refresh();
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -67,7 +90,7 @@ export function ItemRow({
         isDiscarded && "opacity-60",
         leaving && "scale-[0.98] opacity-0"
       )}
-      style={{ borderLeftColor: `var(--${priorityColorVar[priority]})` }}
+      style={{ borderLeftColor: `var(--${priorityColorVar[display.priority]})` }}
     >
       <div className="flex items-start justify-between gap-3">
         <button
@@ -75,10 +98,10 @@ export function ItemRow({
           onClick={() => canExpand && setExpanded((v) => !v)}
           className={clsx("min-w-0 flex-1 text-left", canExpand ? "cursor-pointer" : "cursor-default")}
         >
-          <p className="truncate text-sm leading-snug text-foreground">{title}</p>
+          <p className="truncate text-sm leading-snug text-foreground">{display.title}</p>
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
             <span className="font-mono text-[11px] text-muted">{publicId}</span>
-            <Badge colorVar={priorityColorVar[priority]}>{priorityLabel[priority]}</Badge>
+            <Badge colorVar={priorityColorVar[display.priority]}>{priorityLabel[display.priority]}</Badge>
             <span className="text-[11px] text-muted">{typeLabel[type]}</span>
             {moduleName && <span className="text-[11px] text-muted">· {moduleName}</span>}
           </div>
@@ -97,6 +120,13 @@ export function ItemRow({
               {status === "RESOLVED" ? "Resuelto" : "Descartado"}
             </span>
           )}
+          <button
+            onClick={() => setEditing(true)}
+            className="flex h-10 w-10 items-center justify-center rounded-lg text-muted hover:bg-surface-sunken"
+            aria-label={`Editar ${publicId}`}
+          >
+            <Pencil size={15} />
+          </button>
           {showActions && (
             <>
               <button
@@ -120,8 +150,8 @@ export function ItemRow({
         </div>
       </div>
 
-      {expanded && description && (
-        <p className="mt-2 whitespace-pre-wrap border-t border-border pt-2 text-sm text-muted">{description}</p>
+      {expanded && display.description && (
+        <p className="mt-2 whitespace-pre-wrap border-t border-border pt-2 text-sm text-muted">{display.description}</p>
       )}
     </div>
   );

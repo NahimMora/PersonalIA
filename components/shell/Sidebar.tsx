@@ -23,16 +23,7 @@ export async function Sidebar() {
 
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-border bg-surface md:flex">
-      <div className="flex h-14 shrink-0 items-center px-4">
-        <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-accent text-xs font-bold text-accent-foreground">
-            SC
-          </span>
-          Segundo Cerebro
-        </Link>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-3 pb-3">
+      <div className="flex-1 overflow-y-auto px-3 pt-3 pb-3">
         <Link
           href="/capturar"
           className="mb-4 flex items-center justify-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-foreground shadow-sm transition hover:opacity-90"

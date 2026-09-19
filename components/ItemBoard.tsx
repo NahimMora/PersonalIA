@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { clsx } from "clsx";
 import { Badge } from "@/components/ui/badge";
 import { priorityColorVar, priorityLabel, typeLabel } from "@/lib/ui-maps";
+import { ItemEditForm } from "@/components/ItemEditForm";
 import { MoreHorizontal } from "lucide-react";
 
 type ItemTypeKey = keyof typeof typeLabel;
@@ -14,6 +15,7 @@ interface BoardItem {
   id: string;
   publicId: string;
   title: string;
+  description?: string | null;
   type: ItemTypeKey;
   priority: PriorityKey;
   moduleName?: string | null;
@@ -59,6 +61,11 @@ export function ItemBoard({ items: initialItems }: { items: BoardItem[] }) {
     });
   }
 
+  function editItem(id: string, saved: { title: string; description: string | null; priority: PriorityKey }) {
+    setItems((current) => current.map((it) => (it.id === id ? { ...it, ...saved } : it)));
+    router.refresh();
+  }
+
   return (
     <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:px-0">
       {COLUMNS.map((column) => {
@@ -88,7 +95,7 @@ export function ItemBoard({ items: initialItems }: { items: BoardItem[] }) {
             </div>
             <div className="space-y-1.5">
               {columnItems.map((item) => (
-                <BoardCard key={item.id} item={item} column={column} onMove={moveItem} />
+                <BoardCard key={item.id} item={item} column={column} onMove={moveItem} onEdit={editItem} />
               ))}
               {columnItems.length === 0 && <p className="px-1.5 py-3 text-center text-xs text-muted">Vacío</p>}
             </div>
@@ -99,9 +106,39 @@ export function ItemBoard({ items: initialItems }: { items: BoardItem[] }) {
   );
 }
 
-function BoardCard({ item, column, onMove }: { item: BoardItem; column: Column; onMove: (id: string, type: ItemTypeKey) => void }) {
+function BoardCard({
+  item,
+  column,
+  onMove,
+  onEdit,
+}: {
+  item: BoardItem;
+  column: Column;
+  onMove: (id: string, type: ItemTypeKey) => void;
+  onEdit: (id: string, saved: { title: string; description: string | null; priority: PriorityKey }) => void;
+}) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
   const targets = COLUMNS.filter((c) => c.key !== column.key);
+
+  if (editing) {
+    return (
+      <div className="rounded-lg border border-border bg-background p-2.5">
+        <p className="mb-1.5 font-mono text-[10px] text-muted">{item.publicId}</p>
+        <ItemEditForm
+          id={item.id}
+          title={item.title}
+          description={item.description}
+          priority={item.priority}
+          onCancel={() => setEditing(false)}
+          onSaved={(saved) => {
+            onEdit(item.id, saved);
+            setEditing(false);
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -121,7 +158,7 @@ function BoardCard({ item, column, onMove }: { item: BoardItem; column: Column; 
             if (!e.currentTarget.parentElement?.contains(e.relatedTarget as Node)) setMenuOpen(false);
           }}
           className="rounded p-0.5 text-muted opacity-0 group-hover:opacity-100 hover:bg-surface-hover focus-visible:opacity-100"
-          aria-label={`Mover ${item.publicId}`}
+          aria-label={`Opciones de ${item.publicId}`}
           aria-expanded={menuOpen}
         >
           <MoreHorizontal size={14} />
@@ -135,7 +172,18 @@ function BoardCard({ item, column, onMove }: { item: BoardItem; column: Column; 
 
       {menuOpen && (
         <div className="absolute top-7 right-1 z-10 min-w-32 rounded-lg border border-border bg-surface py-1 shadow-lg">
-          <p className="px-3 pt-1 pb-1.5 text-[10px] font-medium tracking-wide text-muted uppercase">Mover a</p>
+          <button
+            type="button"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setEditing(true);
+              setMenuOpen(false);
+            }}
+            className="block w-full px-3 py-1.5 text-left text-sm hover:bg-surface-hover"
+          >
+            Editar
+          </button>
+          <p className="px-3 pt-1.5 pb-1.5 text-[10px] font-medium tracking-wide text-muted uppercase">Mover a</p>
           {targets.map((t) => (
             <button
               key={t.key}
