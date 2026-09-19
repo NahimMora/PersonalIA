@@ -111,9 +111,10 @@ export async function confirmCapture(
     title: string;
     description?: string;
   },
-  actorUserId?: string
+  actorUserId?: string,
+  source: ItemSource = "USER_CAPTURE"
 ) {
-  const item = await createItem({ ...fields, source: "USER_CAPTURE", actorUserId });
+  const item = await createItem({ ...fields, source, actorUserId });
 
   await prisma.capture.update({
     where: { id: captureId },
@@ -121,6 +122,45 @@ export async function confirmCapture(
   });
 
   return item;
+}
+
+/**
+ * Shortcuts-only: classify with AI and confirm immediately, no human review
+ * step in between — Shortcuts/Siri has no UI to show a suggestion for
+ * approval before saving. Falls back to Inbox/NOTE/MEDIUM (same defaults as
+ * quickCapture) for whatever the AI didn't confidently suggest, since
+ * there's nobody there to fill the gaps by hand.
+ */
+export async function interpretAndAutoConfirm(text: string, actorUserId?: string) {
+  const { capture, interpretation, aiAvailable } = await interpretCapture(text);
+
+  if (!aiAvailable || !interpretation) {
+    throw new Error("La IA no está configurada (falta GEMINI_API_KEY).");
+  }
+
+  const project = interpretation.suggestedProjectId
+    ? await prisma.project.findUnique({ where: { id: interpretation.suggestedProjectId } })
+    : null;
+
+  const item = await confirmCapture(
+    capture.id,
+    {
+      projectId: (project ?? (await getOrCreateInboxProject())).id,
+      moduleId: interpretation.suggestedModuleId,
+      type: interpretation.suggestedType ?? ItemType.NOTE,
+      priority: interpretation.suggestedPriority ?? ItemPriority.MEDIUM,
+      title: interpretation.suggestedTitle ?? text.slice(0, 80),
+      description: text.length > 120 ? text : undefined,
+    },
+    actorUserId,
+    "IPHONE_SHORTCUT"
+  );
+
+  // confirmCapture() updated the row (status, resultItemId) — the `capture`
+  // object above is the pre-confirm snapshot, so refetch before returning it.
+  const confirmedCapture = await prisma.capture.findUniqueOrThrow({ where: { id: capture.id } });
+
+  return { capture: confirmedCapture, item, interpretation };
 }
 
 export async function discardCapture(captureId: string, actorUserId?: string) {

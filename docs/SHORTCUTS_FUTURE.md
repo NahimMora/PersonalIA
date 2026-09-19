@@ -28,17 +28,18 @@ Botón de Acción → Shortcut → pedir texto (o dictado) → `Obtener contenid
 { "action": "capture", "content": "{{Texto dictado}}", "mode": "quick" }
 ```
 
-Para el modo revisado (que la IA sugiera proyecto/tipo/prioridad):
+Para que la IA elija proyecto/tipo/prioridad (sin tener que abrir la web
+después a confirmar nada — pensado justo para Shortcuts, donde no hay UI
+para revisar una sugerencia antes de guardar):
 
 ```json
 { "action": "capture", "content": "{{Texto dictado}}", "mode": "interpret" }
 ```
 
-En este segundo caso la respuesta trae `interpretation` con la sugerencia;
-como Shortcuts no tiene un flujo de confirmación tan rico como la web, la
-recomendación inicial es usar `mode: "interpret"` solo para revisar después
-desde el celular/web, no para confirmar in-line — eso queda como mejora
-futura (ver informe final).
+La respuesta trae `item` con el resultado ya guardado (mismo shape que en
+modo `quick`: `item.publicId`, `item.id`, etc.) más `interpretation` con lo
+que sugirió la IA, por si querés mostrarlo. Si la IA no está segura de a qué
+proyecto pertenece, cae en Inbox — igual que `quick` — en vez de fallar.
 
 ## 4. Shortcut "Iniciar actividad"
 

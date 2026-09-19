@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { NextResponse } from "next/server";
 import { verifyShortcutsRequest } from "@/lib/shortcuts-auth";
-import { quickCapture, interpretCapture } from "@/lib/services/capture";
+import { quickCapture, interpretAndAutoConfirm } from "@/lib/services/capture";
 import { startActivity, stopActivity } from "@/lib/services/activities";
 import { createQuickEvent } from "@/lib/services/events";
 import { sendChatMessage } from "@/lib/services/chat";
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     switch (body.action) {
       case "capture": {
         if (body.mode === "interpret") {
-          const result = await interpretCapture(body.content);
+          const result = await interpretAndAutoConfirm(body.content, apiToken.userId);
           return NextResponse.json(result, { status: 201 });
         }
         const result = await quickCapture({ text: body.content, source: "IPHONE_SHORTCUT" });
