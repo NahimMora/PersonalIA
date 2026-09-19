@@ -67,7 +67,7 @@ export function ItemBoard({ items: initialItems }: { items: BoardItem[] }) {
   }
 
   return (
-    <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:px-0">
+    <div className="flex flex-col gap-3 md:flex-row">
       {COLUMNS.map((column) => {
         const columnItems = items.filter((it) => column.match(it.type));
         return (
@@ -85,7 +85,7 @@ export function ItemBoard({ items: initialItems }: { items: BoardItem[] }) {
               if (id) void moveItem(id, column.targetType);
             }}
             className={clsx(
-              "w-64 shrink-0 rounded-xl border bg-surface p-2 transition-colors md:w-auto md:flex-1",
+              "rounded-xl border bg-surface p-2 transition-colors md:flex-1",
               dragOverColumn === column.key ? "border-accent bg-accent-soft" : "border-border"
             )}
           >

@@ -53,34 +53,32 @@ export default async function ProjectPage({
         {project.description && <p className="text-sm text-muted">{project.description}</p>}
       </div>
 
-      <div className="-mx-4 overflow-x-auto px-4">
-        <div className="flex min-w-full gap-1 rounded-lg border border-border bg-surface p-1">
-          {TABS.map((t) => {
-            const count = counts[t.key as keyof typeof counts];
-            return (
-              <Link
-                key={t.key}
-                href={`/proyectos/${slug}?tab=${t.key}`}
-                className={clsx(
-                  "flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-sm whitespace-nowrap",
-                  tab === t.key ? "bg-accent text-accent-foreground" : "text-muted hover:bg-surface-hover"
-                )}
-              >
-                {t.label}
-                {typeof count === "number" && count > 0 && (
-                  <span
-                    className={clsx(
-                      "rounded-full px-1.5 py-0.5 text-[10px] leading-none font-medium",
-                      tab === t.key ? "bg-accent-foreground/20" : "bg-surface-sunken text-muted"
-                    )}
-                  >
-                    {count}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
-        </div>
+      <div className="flex flex-wrap gap-1 rounded-lg border border-border bg-surface p-1">
+        {TABS.map((t) => {
+          const count = counts[t.key as keyof typeof counts];
+          return (
+            <Link
+              key={t.key}
+              href={`/proyectos/${slug}?tab=${t.key}`}
+              className={clsx(
+                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm whitespace-nowrap",
+                tab === t.key ? "bg-accent text-accent-foreground" : "text-muted hover:bg-surface-hover"
+              )}
+            >
+              {t.label}
+              {typeof count === "number" && count > 0 && (
+                <span
+                  className={clsx(
+                    "rounded-full px-1.5 py-0.5 text-[10px] leading-none font-medium",
+                    tab === t.key ? "bg-accent-foreground/20" : "bg-surface-sunken text-muted"
+                  )}
+                >
+                  {count}
+                </span>
+              )}
+            </Link>
+          );
+        })}
       </div>
 
       {tab === "documentacion" ? (
